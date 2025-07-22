@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>Control de Gastos Poncitlán</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #fff;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .view-hidden {
+            display: none;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        /* Estilos para la barra lateral móvil */
+        #main-sidebar.open {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Contenedor de la aplicación -->
+    <div id="app-container">
+
+        <!-- Vista de Login -->
+        <div id="login-view">
+            <div class="min-h-screen flex flex-col items-center justify-center p-4">
+                <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
+                    <div class="text-center mb-8">
+                        <h1 class="text-3xl font-bold text-gray-800">Control de Gastos</h1>
+                        <p class="text-gray-500">Poncitlán</p>
+                    </div>
+                    <form id="login-form">
+                        <div class="space-y-6">
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+                                <input type="email" id="email" name="email" required class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            </div>
+                            <div>
+                                <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                                <input type="password" id="password" name="password" required class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            </div>
+                        </div>
+                        <div id="error-message" class="mt-4 text-center text-red-600 text-sm font-medium"></div>
+                        <div class="mt-8">
+                            <button type="submit" id="login-button" class="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                                <span id="button-text">Iniciar Sesión</span>
+                                <div id="button-spinner" class="spinner hidden"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vista del Dashboard Principal -->
+        <div id="dashboard-view" class="view-hidden">
+            <div class="relative min-h-screen lg:flex">
+                <!-- Overlay para menú móvil -->
+                <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden view-hidden"></div>
+
+                <!-- Sidebar -->
+                <div id="main-sidebar" class="bg-white shadow-md w-64 flex-shrink-0 flex-col fixed inset-y-0 left-0 z-30 transform -translate-x-full transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:flex">
+                    <div class="p-6 text-center border-b">
+                        <h2 class="text-xl font-bold text-gray-800">Menú Principal</h2>
+                    </div>
+                    <nav class="flex-1 px-4 py-4 space-y-2">
+                        <a href="#dashboard" data-view="main-dashboard-content" class="nav-link flex items-center px-4 py-2 text-gray-700 bg-gray-200 rounded-md">Dashboard</a>
+                        <a href="#miembros" data-view="miembros-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Miembros</a>
+                        <a href="#solicitud" data-view="solicitud-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Solicitud de Apoyos</a>
+                        <a href="#pagos" data-view="pagos-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Registro de Pagos</a>
+                    </nav>
+                    <div class="p-4 border-t">
+                         <div id="user-info" class="text-sm text-gray-600 mb-4"></div>
+                         <button id="logout-button" class="w-full text-left flex items-center px-4 py-2 text-red-600 hover:bg-red-100 rounded-md">Cerrar Sesión</button>
+                    </div>
+                </div>
+
+                <!-- Contenido Principal -->
+                <div class="flex-1 flex flex-col">
+                    <!-- Header para móvil -->
+                    <header class="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
+                        <h1 class="text-xl font-bold text-gray-800">Control de Gastos</h1>
+                        <button id="mobile-menu-button" class="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                            <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </header>
+
+                    <main class="flex-1 p-4 sm:p-8 overflow-y-auto">
+                        <div id="main-dashboard-content" class="page-content">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard Financiero</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                <div class="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 class="text-sm font-medium text-gray-500">Deuda Total Pendiente</h3>
+                                    <p id="kpi-deuda-total" class="text-3xl font-bold text-red-600 mt-1">$0.00</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 class="text-sm font-medium text-gray-500">Apoyos Otorgados (Total)</h3>
+                                    <p id="kpi-apoyos-total" class="text-3xl font-bold text-blue-600 mt-1">$0.00</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 class="text-sm font-medium text-gray-500">Pagos Recibidos (Total)</h3>
+                                    <p id="kpi-pagos-total" class="text-3xl font-bold text-green-600 mt-1">$0.00</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 class="text-sm font-medium text-gray-500">Miembros con Deuda</h3>
+                                    <p id="kpi-miembros-deuda" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                                    <h2 class="text-xl font-semibold mb-4">Ranking de Deudores</h2>
+                                    <div id="deudores-table-container" class="overflow-x-auto"></div>
+                                </div>
+                                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                                    <h2 class="text-xl font-semibold mb-4">Apoyos vs. Pagos</h2>
+                                    <div class="relative h-80">
+                                        <canvas id="apoyos-vs-pagos-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="miembros-content" class="page-content view-hidden">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Gestión de Miembros</h1>
+                            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                                <h2 class="text-xl font-semibold mb-4">Agregar Nuevo Miembro</h2>
+                                <form id="add-member-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                    <div>
+                                        <label for="nickname" class="block text-sm font-medium text-gray-700">Nickname</label>
+                                        <input type="text" id="nickname" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                                        <select id="status" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="fullparch">Fullparch</option>
+                                            <option value="prospecto">Prospecto</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition h-fit">Agregar Miembro</button>
+                                </form>
+                                 <div id="member-feedback" class="mt-3 text-sm"></div>
+                            </div>
+                            <div class="bg-white p-6 rounded-lg shadow-md">
+                                <h2 class="text-xl font-semibold mb-4">Lista de Miembros</h2>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nickname</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Registro</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="members-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="solicitud-content" class="page-content view-hidden">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Solicitud de Apoyos</h1>
+                            <form id="solicitud-form" class="bg-white p-8 rounded-lg shadow-md">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Capturado por</label>
+                                        <input type="text" id="capturado_por" disabled class="mt-1 block w-full px-3 py-2 bg-gray-200 border border-gray-300 rounded-md shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label for="fecha_apoyo" class="block text-sm font-medium text-gray-700">Fecha</label>
+                                        <input type="date" id="fecha_apoyo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label for="motivo_apoyo" class="block text-sm font-medium text-gray-700">Motivo</label>
+                                        <input type="text" id="motivo_apoyo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label for="monto_apoyo" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
+                                        <input type="number" id="monto_apoyo" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label for="tipo_division" class="block text-sm font-medium text-gray-700">Dividir entre</label>
+                                        <select id="tipo_division" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="">-- Seleccione --</option>
+                                            <option value="INDIVIDUAL">Individual</option>
+                                            <option value="FULLPARCH">Fullparch</option>
+                                            <option value="TODOS">Todos</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="individual-members-list" class="mt-6 view-hidden">
+                                    <h3 class="text-lg font-medium text-gray-800 mb-2">Seleccionar Miembros</h3>
+                                    <div id="members-checkbox-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-48 overflow-y-auto p-4 border rounded-md"></div>
+                                </div>
+                                <div id="division-info" class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg view-hidden"></div>
+                                <div id="apoyo-feedback" class="mt-4 text-sm"></div>
+                                <div class="mt-8 text-right">
+                                    <button type="submit" id="save-apoyo-button" disabled class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition">Guardar Apoyo y Crear Cargos</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div id="pagos-content" class="page-content view-hidden">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Registro de Pagos</h1>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                                    <h2 class="text-xl font-semibold mb-4">Registrar un Pago</h2>
+                                    <form id="pago-form">
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="pago-miembro-select" class="block text-sm font-medium text-gray-700">Miembro</label>
+                                                <select id="pago-miembro-select" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">-- Seleccione un miembro --</option>
+                                                </select>
+                                            </div>
+                                            <div id="pago-info-display" class="view-hidden">
+                                                <div>
+                                                    <label for="pago-monto" class="block text-sm font-medium text-gray-700">Pago o Abono ($)</label>
+                                                    <input type="number" id="pago-monto" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                </div>
+                                                <div>
+                                                    <label for="pago-fecha" class="block text-sm font-medium text-gray-700">Fecha de Pago</label>
+                                                    <input type="date" id="pago-fecha" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                </div>
+                                                <div>
+                                                    <label for="pago-observaciones" class="block text-sm font-medium text-gray-700">Observaciones</label>
+                                                    <textarea id="pago-observaciones" rows="3" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                                </div>
+                                                <div id="pago-feedback" class="mt-2 text-sm"></div>
+                                                <button type="submit" id="save-pago-button" disabled class="w-full mt-4 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">Guardar Pago</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div id="deuda-display" class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md view-hidden">
+                                    <h2 class="text-xl font-semibold mb-2">Estado de Cuenta de: <span id="deuda-nickname" class="text-blue-600"></span></h2>
+                                    <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                        <p class="text-lg text-gray-700">Deuda Total Pendiente:</p>
+                                        <p id="deuda-total" class="text-3xl font-bold text-red-600">$0.00</p>
+                                    </div>
+                                    <h3 class="text-lg font-medium text-gray-800 mb-2">Desglose de Adeudos Pendientes</h3>
+                                    <div class="overflow-x-auto max-h-96">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50 sticky top-0">
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo del Cargo</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pendiente</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="deuda-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- CONFIGURACIÓN DE SUPABASE ---
+        const SUPABASE_URL = 'https://qjswicjxwsbwnxrrowsi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqc3dpY2p4d3Nid254cnJvd3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU3OTUyNTcsImV4cCI6MjA2MTM3MTI1N30.apVjhVZEINYeLPHQl07ZdWJRdn8dqL1jPdlHoOIWZBw';
+        const { createClient } = supabase;
+        const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        let currentUser = null;
+        let allMembers = [];
+        let apoyosChart = null;
+
+        // --- SELECTORES DEL DOM ---
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const loginForm = document.getElementById('login-form');
+        const errorMessage = document.getElementById('error-message');
+        const logoutButton = document.getElementById('logout-button');
+        const userInfo = document.getElementById('user-info');
+        const loginButton = document.getElementById('login-button');
+        const buttonText = document.getElementById('button-text');
+        const buttonSpinner = document.getElementById('button-spinner');
+        const mainSidebar = document.getElementById('main-sidebar');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        // Miembros
+        const addMemberForm = document.getElementById('add-member-form');
+        const membersTableBody = document.getElementById('members-table-body');
+        const memberFeedback = document.getElementById('member-feedback');
+        // Solicitud de Apoyos
+        const solicitudForm = document.getElementById('solicitud-form');
+        const capturadoPorInput = document.getElementById('capturado_por');
+        const individualMembersListDiv = document.getElementById('individual-members-list');
+        const membersCheckboxList = document.getElementById('members-checkbox-list');
+        const divisionInfoDiv = document.getElementById('division-info');
+        const saveApoyoButton = document.getElementById('save-apoyo-button');
+        const apoyoFeedback = document.getElementById('apoyo-feedback');
+        const tipoDivisionSelect = document.getElementById('tipo_division');
+        // Registro de Pagos
+        const pagoForm = document.getElementById('pago-form');
+        const pagoMiembroSelect = document.getElementById('pago-miembro-select');
+        const pagoInfoDisplay = document.getElementById('pago-info-display');
+        const deudaDisplay = document.getElementById('deuda-display');
+        const deudaNickname = document.getElementById('deuda-nickname');
+        const deudaTotal = document.getElementById('deuda-total');
+        const deudaTableBody = document.getElementById('deuda-table-body');
+        const savePagoButton = document.getElementById('save-pago-button');
+        const pagoFeedback = document.getElementById('pago-feedback');
+        // Dashboard
+        const kpiDeudaTotal = document.getElementById('kpi-deuda-total');
+        const kpiApoyosTotal = document.getElementById('kpi-apoyos-total');
+        const kpiPagosTotal = document.getElementById('kpi-pagos-total');
+        const kpiMiembrosDeuda = document.getElementById('kpi-miembros-deuda');
+        const deudoresTableContainer = document.getElementById('deudores-table-container');
+
+        // --- MANEJO DE VISTAS ---
+        const setActiveView = (viewId) => {
+            document.querySelectorAll('.page-content').forEach(view => view.classList.add('view-hidden'));
+            document.getElementById(viewId).classList.remove('view-hidden');
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('bg-gray-200');
+                if (link.dataset.view === viewId) link.classList.add('bg-gray-200');
+            });
+            if (viewId === 'pagos-content') initializePagosModule();
+            if (viewId === 'main-dashboard-content') initializeDashboard();
+            
+            // Close mobile menu on navigation
+            mainSidebar.classList.remove('open');
+            mobileMenuOverlay.classList.add('view-hidden');
+        };
+
+        const setupNavigation = () => {
+             const navLinks = mainSidebar.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    setActiveView(e.target.closest('.nav-link').dataset.view);
+                });
+            });
+
+            mobileMenuButton.addEventListener('click', () => {
+                mainSidebar.classList.toggle('open');
+                mobileMenuOverlay.classList.toggle('view-hidden');
+            });
+
+            mobileMenuOverlay.addEventListener('click', () => {
+                mainSidebar.classList.remove('open');
+                mobileMenuOverlay.classList.add('view-hidden');
+            });
+        };
+
+        const showDashboardView = async (user) => {
+            currentUser = user;
+            loginView.classList.add('view-hidden');
+            dashboardView.classList.remove('view-hidden');
+            userInfo.textContent = `Usuario: ${user.email}`;
+            await fetchAndRenderMembers();
+            await initializeApoyosModule();
+            await initializePagosModule();
+            setActiveView('main-dashboard-content');
+        };
+
+        const showLoginView = () => {
+            currentUser = null;
+            dashboardView.classList.add('view-hidden');
+            loginView.classList.remove('view-hidden');
+            loginForm.reset();
+        };
+
+        // --- LÓGICA DE AUTENTICACIÓN ---
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            errorMessage.textContent = '';
+            loginButton.disabled = true;
+            try {
+                const { data, error } = await dbClient.auth.signInWithPassword({
+                    email: loginForm.email.value,
+                    password: loginForm.password.value,
+                });
+                if (error) throw error;
+                if (data.user) await showDashboardView(data.user);
+            } catch (error) {
+                errorMessage.textContent = 'Correo o contraseña incorrectos.';
+            } finally {
+                loginButton.disabled = false;
+            }
+        };
+
+        const handleLogout = async () => {
+            await dbClient.auth.signOut();
+            showLoginView();
+        };
+
+        const checkUserSession = async () => {
+            const { data: { session } } = await dbClient.auth.getSession();
+            if (session) await showDashboardView(session.user);
+            else showLoginView();
+        };
+
+        // --- LÓGICA DEL DASHBOARD ---
+        const initializeDashboard = async () => {
+            // 1. Fetch all required data in parallel
+            const [
+                { data: cargosData, error: cargosError },
+                { data: apoyosData, error: apoyosError },
+                { data: pagosData, error: pagosError }
+            ] = await Promise.all([
+                dbClient.from('cargos').select('miembro_id, monto_pendiente, miembros(nickname)'),
+                dbClient.from('registro_apoyos').select('monto_total'),
+                dbClient.from('registro_pagos').select('monto_pagado')
+            ]);
+
+            if (cargosError || apoyosError || pagosError) {
+                console.error("Error fetching dashboard data", { cargosError, apoyosError, pagosError });
+                return;
+            }
+
+            // 2. Process data for KPIs
+            const totalApoyos = apoyosData.reduce((sum, item) => sum + item.monto_total, 0);
+            const totalPagos = pagosData.reduce((sum, item) => sum + item.monto_pagado, 0);
+            const totalDeuda = cargosData.reduce((sum, item) => sum + item.monto_pendiente, 0);
+
+            const deudasPorMiembro = cargosData.reduce((acc, cargo) => {
+                if (cargo.miembros && cargo.monto_pendiente > 0.01) {
+                    acc[cargo.miembro_id] = acc[cargo.miembro_id] || { nickname: cargo.miembros.nickname, total: 0 };
+                    acc[cargo.miembro_id].total += cargo.monto_pendiente;
+                }
+                return acc;
+            }, {});
+
+            const deudoresList = Object.values(deudasPorMiembro).sort((a, b) => b.total - a.total);
+
+            // 3. Render KPIs
+            kpiDeudaTotal.textContent = `$${totalDeuda.toFixed(2)}`;
+            kpiApoyosTotal.textContent = `$${totalApoyos.toFixed(2)}`;
+            kpiPagosTotal.textContent = `$${totalPagos.toFixed(2)}`;
+            kpiMiembrosDeuda.textContent = deudoresList.length;
+
+            // 4. Render Deudores Table
+            renderDeudoresTable(deudoresList, totalDeuda);
+
+            // 5. Render Chart
+            renderApoyosVsPagosChart(totalApoyos, totalPagos);
+        };
+
+        const renderDeudoresTable = (deudores, totalDeuda) => {
+            let tableHtml = `<table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Miembro</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% de la Deuda Total</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">`;
+
+            if (deudores.length === 0) {
+                tableHtml += `<tr><td colspan="3" class="text-center py-4 text-gray-500">No hay deudas pendientes. ¡Felicidades!</td></tr>`;
+            } else {
+                deudores.forEach(deudor => {
+                    const percentage = totalDeuda > 0 ? (deudor.total / totalDeuda) * 100 : 0;
+                    tableHtml += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${deudor.nickname}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-500">$${deudor.total.toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="bg-red-600 h-2.5 rounded-full" style="width: ${percentage.toFixed(2)}%"></div>
+                                </div>
+                                <span class="text-xs">${percentage.toFixed(1)}%</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            tableHtml += `</tbody></table>`;
+            deudoresTableContainer.innerHTML = tableHtml;
+        };
+
+        const renderApoyosVsPagosChart = (totalApoyos, totalPagos) => {
+            const ctx = document.getElementById('apoyos-vs-pagos-chart').getContext('2d');
+            if (apoyosChart) {
+                apoyosChart.destroy();
+            }
+            apoyosChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Flujo Financiero'],
+                    datasets: [
+                        {
+                            label: 'Total Apoyos Otorgados',
+                            data: [totalApoyos],
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Total Pagos Recibidos',
+                            data: [totalPagos],
+                            backgroundColor: 'rgba(22, 163, 74, 0.7)',
+                            borderColor: 'rgba(22, 163, 74, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                             ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        };
+
+        // --- LÓGICA DE MIEMBROS ---
+        const fetchAndRenderMembers = async () => {
+            const { data, error } = await dbClient.from('miembros').select('*').order('nickname', { ascending: true });
+            if (error) { console.error("Error al cargar miembros", error); return; }
+            allMembers = data;
+            membersTableBody.innerHTML = '';
+            data.forEach(member => {
+                const row = `<tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${member.nickname}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${member.status}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(member.created_at).toLocaleDateString()}</td>
+                </tr>`;
+                membersTableBody.innerHTML += row;
+            });
+        };
+        
+        const handleAddMember = async (e) => {
+            e.preventDefault();
+            memberFeedback.textContent = '';
+            const nickname = addMemberForm.nickname.value.trim();
+            const status = addMemberForm.status.value;
+            if (!nickname) {
+                memberFeedback.textContent = 'El nickname es obligatorio.';
+                memberFeedback.className = 'mt-3 text-sm text-red-600';
+                return;
+            }
+            try {
+                const { error } = await dbClient.from('miembros').insert([{ nickname, status }]);
+                if (error) throw error;
+                memberFeedback.textContent = `¡Miembro "${nickname}" agregado!`;
+                memberFeedback.className = 'mt-3 text-sm text-green-600';
+                addMemberForm.reset();
+                await fetchAndRenderMembers();
+                await initializeApoyosModule();
+                await initializePagosModule();
+            } catch (error) {
+                memberFeedback.textContent = error.code === '23505' ? 'Error: Ese nickname ya existe.' : 'Error al guardar el miembro.';
+                memberFeedback.className = 'mt-3 text-sm text-red-600';
+            }
+        };
+
+        // --- LÓGICA DE SOLICITUD DE APOYOS ---
+        const initializeApoyosModule = async () => {
+            if(!currentUser) return;
+            capturadoPorInput.value = currentUser.email;
+            solicitudForm.reset(); 
+            capturadoPorInput.value = currentUser.email;
+            document.getElementById('fecha_apoyo').valueAsDate = new Date();
+            
+            membersCheckboxList.innerHTML = '';
+            allMembers.forEach(member => {
+                const checkboxDiv = `
+                    <div class="flex items-center">
+                        <input id="member-${member.id}" data-id="${member.id}" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 member-checkbox">
+                        <label for="member-${member.id}" class="ml-2 block text-sm text-gray-900">${member.nickname}</label>
+                    </div>`;
+                membersCheckboxList.innerHTML += checkboxDiv;
+            });
+            validateApoyoForm();
+        };
+        
+        const validateApoyoForm = () => {
+            const { fecha_apoyo, motivo_apoyo, monto_apoyo, tipo_division } = solicitudForm;
+            let membersToCharge = [];
+            
+            if (tipo_division.value === 'TODOS') {
+                membersToCharge = allMembers;
+            } else if (tipo_division.value === 'FULLPARCH') {
+                membersToCharge = allMembers.filter(m => m.status === 'fullparch');
+            } else if (tipo_division.value === 'INDIVIDUAL') {
+                const checkedBoxes = membersCheckboxList.querySelectorAll('input:checked');
+                checkedBoxes.forEach(box => {
+                    const member = allMembers.find(m => m.id === box.dataset.id);
+                    if(member) membersToCharge.push(member);
+                });
+            }
+
+            const monto = parseFloat(monto_apoyo.value) || 0;
+            const isValid = fecha_apoyo.value && motivo_apoyo.value.trim() && monto > 0 && tipo_division.value && membersToCharge.length > 0;
+
+            if (isValid) {
+                const individualAmount = (monto / membersToCharge.length).toFixed(2);
+                divisionInfoDiv.innerHTML = `El monto de <strong>$${monto.toFixed(2)}</strong> se dividirá entre <strong>${membersToCharge.length}</strong> miembros. <br>Cada uno pagará <strong>$${individualAmount}</strong>.`;
+                divisionInfoDiv.classList.remove('view-hidden');
+            } else {
+                divisionInfoDiv.classList.add('view-hidden');
+            }
+            
+            saveApoyoButton.disabled = !isValid;
+        };
+
+        const handleSaveApoyo = async (e) => {
+            e.preventDefault();
+            apoyoFeedback.textContent = '';
+            saveApoyoButton.disabled = true;
+
+            const { fecha_apoyo, motivo_apoyo, monto_apoyo, tipo_division } = solicitudForm;
+            const monto = parseFloat(monto_apoyo.value);
+            
+            let membersToCharge = [];
+            if (tipo_division.value === 'TODOS') membersToCharge = allMembers;
+            else if (tipo_division.value === 'FULLPARCH') membersToCharge = allMembers.filter(m => m.status === 'fullparch');
+            else if (tipo_division.value === 'INDIVIDUAL') {
+                membersCheckboxList.querySelectorAll('input:checked').forEach(box => {
+                    const member = allMembers.find(m => m.id === box.dataset.id);
+                    if(member) membersToCharge.push(member);
+                });
+            }
+
+            const individualAmount = monto / membersToCharge.length;
+
+            try {
+                const { data: apoyoData, error: apoyoError } = await dbClient
+                    .from('registro_apoyos')
+                    .insert({
+                        capturado_por: currentUser.id,
+                        nombre_capturador: currentUser.email,
+                        fecha: fecha_apoyo.value,
+                        motivo: motivo_apoyo.value.trim(),
+                        monto_total: monto,
+                        tipo_division: tipo_division.value
+                    })
+                    .select()
+                    .single();
+
+                if (apoyoError) throw apoyoError;
+
+                const cargosToInsert = membersToCharge.map(member => ({
+                    apoyo_id: apoyoData.id,
+                    miembro_id: member.id,
+                    monto_original: individualAmount,
+                    monto_pendiente: individualAmount,
+                    estado: 'pendiente'
+                }));
+
+                const { error: cargosError } = await dbClient.from('cargos').insert(cargosToInsert);
+                if (cargosError) throw cargosError;
+
+                apoyoFeedback.textContent = '¡Apoyo y cargos guardados con éxito!';
+                apoyoFeedback.className = 'mt-4 text-sm text-green-600';
+                await initializeApoyosModule();
+
+            } catch (error) {
+                console.error("Error al guardar apoyo:", error);
+                apoyoFeedback.textContent = `Error al guardar: ${error.message}`;
+                apoyoFeedback.className = 'mt-4 text-sm text-red-600';
+            } finally {
+                validateApoyoForm();
+            }
+        };
+
+        // --- LÓGICA DE REGISTRO DE PAGOS ---
+        const initializePagosModule = async () => {
+            pagoMiembroSelect.innerHTML = '<option value="">-- Seleccione un miembro --</option>';
+            allMembers.forEach(member => {
+                const option = `<option value="${member.id}">${member.nickname}</option>`;
+                pagoMiembroSelect.innerHTML += option;
+            });
+            pagoForm.reset();
+            pagoInfoDisplay.classList.add('view-hidden');
+            deudaDisplay.classList.add('view-hidden');
+            document.getElementById('pago-fecha').valueAsDate = new Date();
+        };
+
+        const handleMemberSelectionForPayment = async (memberId) => {
+            if (!memberId) {
+                pagoInfoDisplay.classList.add('view-hidden');
+                deudaDisplay.classList.add('view-hidden');
+                return;
+            }
+
+            const selectedMember = allMembers.find(m => m.id === memberId);
+            deudaNickname.textContent = selectedMember.nickname;
+
+            const { data: cargos, error } = await dbClient
+                .from('cargos')
+                .select('*, registro_apoyos(motivo, fecha)')
+                .eq('miembro_id', memberId)
+                .eq('estado', 'pendiente')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error("Error al cargar cargos del miembro:", error);
+                deudaTotal.textContent = "Error";
+                deudaTableBody.innerHTML = `<tr><td colspan="3" class="text-red-500 text-center py-4">No se pudo cargar la deuda.</td></tr>`;
+                return;
+            }
+
+            const totalPendiente = cargos.reduce((sum, cargo) => sum + cargo.monto_pendiente, 0);
+            deudaTotal.textContent = `$${totalPendiente.toFixed(2)}`;
+            
+            deudaTableBody.innerHTML = '';
+            if (cargos.length === 0) {
+                deudaTableBody.innerHTML = `<tr><td colspan="3" class="text-green-500 text-center py-4">¡Este miembro no tiene adeudos!</td></tr>`;
+            } else {
+                cargos.forEach(cargo => {
+                    const row = `
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${cargo.registro_apoyos.motivo}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${new Date(cargo.registro_apoyos.fecha).toLocaleDateString()}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">$${cargo.monto_pendiente.toFixed(2)}</td>
+                        </tr>
+                    `;
+                    deudaTableBody.innerHTML += row;
+                });
+            }
+
+            pagoInfoDisplay.classList.remove('view-hidden');
+            deudaDisplay.classList.remove('view-hidden');
+            document.getElementById('pago-monto').value = '';
+            validatePagoForm();
+        };
+
+        const validatePagoForm = () => {
+            const monto = parseFloat(document.getElementById('pago-monto').value) || 0;
+            const fecha = document.getElementById('pago-fecha').value;
+            savePagoButton.disabled = !(monto > 0 && fecha);
+        };
+
+        const handleSavePago = async (e) => {
+            e.preventDefault();
+            pagoFeedback.textContent = '';
+            savePagoButton.disabled = true;
+
+            const miembroId = pagoMiembroSelect.value;
+            let montoPagado = parseFloat(document.getElementById('pago-monto').value);
+            const fechaPago = document.getElementById('pago-fecha').value;
+            const observaciones = document.getElementById('pago-observaciones').value.trim();
+
+            try {
+                const { data: cargosPendientes, error: fetchError } = await dbClient
+                    .from('cargos')
+                    .select('id, monto_pendiente')
+                    .eq('miembro_id', miembroId)
+                    .eq('estado', 'pendiente')
+                    .order('created_at', { ascending: true });
+
+                if (fetchError) throw fetchError;
+
+                for (const cargo of cargosPendientes) {
+                    if (montoPagado <= 0) break;
+
+                    const montoACubrir = Math.min(montoPagado, cargo.monto_pendiente);
+                    const nuevoMontoPendiente = cargo.monto_pendiente - montoACubrir;
+                    const nuevoEstado = nuevoMontoPendiente <= 0.001 ? 'pagado' : 'pendiente';
+
+                    const { error: updateError } = await dbClient
+                        .from('cargos')
+                        .update({ monto_pendiente: nuevoMontoPendiente, estado: nuevoEstado })
+                        .eq('id', cargo.id);
+                    
+                    if (updateError) throw updateError;
+
+                    montoPagado -= montoACubrir;
+                }
+
+                const { error: insertPagoError } = await dbClient
+                    .from('registro_pagos')
+                    .insert({
+                        miembro_id: miembroId,
+                        monto_pagado: parseFloat(document.getElementById('pago-monto').value),
+                        fecha_pago: fechaPago,
+                        observaciones: observaciones,
+                        registrado_por: currentUser.id
+                    });
+
+                if (insertPagoError) throw insertPagoError;
+
+                pagoFeedback.textContent = '¡Pago registrado y aplicado con éxito!';
+                pagoFeedback.className = 'mt-2 text-sm text-green-600';
+                
+                pagoForm.reset();
+                document.getElementById('pago-fecha').valueAsDate = new Date();
+                await handleMemberSelectionForPayment(miembroId);
+
+            } catch (error) {
+                console.error("Error al guardar el pago:", error);
+                pagoFeedback.textContent = `Error: ${error.message}`;
+                pagoFeedback.className = 'mt-2 text-sm text-red-600';
+            } finally {
+                validatePagoForm();
+            }
+        };
+
+        // --- INICIALIZACIÓN Y EVENTOS ---
+        const init = async () => {
+            loginForm.addEventListener('submit', handleLogin);
+            logoutButton.addEventListener('click', handleLogout);
+            setupNavigation();
+            addMemberForm.addEventListener('submit', handleAddMember);
+            solicitudForm.addEventListener('input', validateApoyoForm);
+            membersCheckboxList.addEventListener('change', validateApoyoForm);
+            tipoDivisionSelect.addEventListener('change', () => {
+                individualMembersListDiv.classList.toggle('view-hidden', tipoDivisionSelect.value !== 'INDIVIDUAL');
+                validateApoyoForm();
+            });
+            solicitudForm.addEventListener('submit', handleSaveApoyo);
+            pagoMiembroSelect.addEventListener('change', (e) => handleMemberSelectionForPayment(e.target.value));
+            pagoForm.addEventListener('input', validatePagoForm);
+            pagoForm.addEventListener('submit', handleSavePago);
+
+            await checkUserSession();
+        };
+        
+        init();
+
+    </script>
+</body>
+</html>
