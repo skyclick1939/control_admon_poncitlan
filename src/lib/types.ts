@@ -48,6 +48,15 @@ export interface CargoConMiembro extends Pick<Cargo, 'miembro_id' | 'monto_pendi
   miembros: Pick<Miembro, 'nickname'> | null;
 }
 
+/** `cargos` + its apoyo, for the ADMIN per-member history panel (design.md D14,
+ *  member-payment-history). Unlike a member-facing payload this keeps `motivo`
+ *  — the admin is authorized for it. `registro_apoyos` is nullable because the
+ *  join may not resolve. */
+export interface CargoHistorial
+  extends Pick<Cargo, 'id' | 'monto_original' | 'monto_pendiente' | 'estado' | 'created_at'> {
+  registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'> | null;
+}
+
 /** Row of `public.app_admins` (design.md Database Design — Phase 2). */
 export interface AppAdmin {
   user_id: string;

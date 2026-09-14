@@ -1,5 +1,5 @@
 import { dbClient } from '../../lib/supabase';
-import type { Miembro } from '../../lib/types';
+import type { CargoHistorial, Miembro, RegistroPago } from '../../lib/types';
 
 export async function fetchMembers(): Promise<Miembro[]> {
   const { data, error } = await dbClient
@@ -41,4 +41,35 @@ export async function reactivateMember(id: string): Promise<void> {
 export async function deleteMember(id: string): Promise<void> {
   const { error } = await dbClient.from('miembros').delete().eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * Full cargo history for one member — every `cargo` regardless of `estado`
+ * (design.md D14; spec member-payment-history "Full Per-Member History
+ * Retrieval"). No `estado` filter and no `activo` filter: that omission is
+ * the whole point of this admin surface, including for retired members.
+ */
+export async function fetchCargosMiembro(miembroId: string): Promise<CargoHistorial[]> {
+  const { data, error } = await dbClient
+    .from('cargos')
+    .select('id, monto_original, monto_pendiente, estado, created_at, registro_apoyos(motivo, fecha)')
+    .eq('miembro_id', miembroId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  // The untyped supabase-js client heuristically infers `registro_apoyos` as an
+  // array from the plural table name; at runtime (and per PostgREST's many-to-one
+  // embed rules for cargos.apoyo_id -> registro_apoyos.id) it is a single object
+  // or null, matching CargoHistorial (dashboard/index.ts precedent).
+  return data as unknown as CargoHistorial[];
+}
+
+/** Full payment history for one member, newest first. No `activo` filter. */
+export async function fetchPagosMiembro(miembroId: string): Promise<RegistroPago[]> {
+  const { data, error } = await dbClient
+    .from('registro_pagos')
+    .select('*')
+    .eq('miembro_id', miembroId)
+    .order('fecha_pago', { ascending: false });
+  if (error) throw error;
+  return data as RegistroPago[];
 }
