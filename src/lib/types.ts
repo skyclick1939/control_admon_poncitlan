@@ -45,3 +45,28 @@ export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
 export interface CargoConMiembro extends Pick<Cargo, 'miembro_id' | 'monto_pendiente'> {
   miembros: Pick<Miembro, 'nickname'> | null;
 }
+
+/** Row of `public.app_admins` (design.md Database Design — Phase 2). */
+export interface AppAdmin {
+  user_id: string;
+  email: string;
+  rol: 'superadmin' | 'admin';
+  created_at: string;
+  created_by: string | null;
+}
+
+/** Result of `auth.mfa.enroll({ factorType: 'totp' })`, renamed to camelCase at the module boundary. */
+export interface TotpEnrollment {
+  factorId: string;
+  qrCode: string;
+  secret: string;
+  uri: string;
+}
+
+/** Mirrors `supabase-js`'s `AuthenticatorAssuranceLevels` narrowed to the two levels this app uses. */
+export type AssuranceLevel = 'aal1' | 'aal2' | null;
+
+export interface AssuranceLevelStatus {
+  currentLevel: AssuranceLevel;
+  nextLevel: AssuranceLevel;
+}

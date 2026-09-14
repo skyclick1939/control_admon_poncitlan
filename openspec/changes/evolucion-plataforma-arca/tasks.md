@@ -67,14 +67,16 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Roles + MFA
 
+**SQL status**: SQL for 2.1-2.6 is drafted and ready for review in `supabase/sql/`; none has been applied to the live database yet — pending explicit owner sign-off (see Phase 0 for the precedent).
+
 - [ ] 2.1 `supabase/sql/phase2_roles.sql`: `app_admins` DDL, `is_admin()`/`is_superadmin()` as `security definer` with `set search_path = ''` (D3 — avoids infinite recursion); revoke/grant execute; apply.
 - [ ] 2.2 Seed the first superadmin row by SQL (bootstrap — no UI path exists yet).
 - [ ] 2.3 `supabase/sql/phase2_rls.sql`: drop the 4 blanket `ALL to authenticated` policies; add `is_admin()`-scoped SELECT/INSERT/UPDATE/DELETE policies on all 6 tables; apply.
 - [ ] 2.4 `supabase/sql/phase2_aal2.sql`: 3 separate `as restrictive for insert|update|delete` AAL2 policies on `app_admins` — never a bare FOR-less restrictive policy (defaults to `FOR ALL`, would block every session's `aal1` role SELECT); apply.
 - [ ] 2.5 `supabase/sql/phase2_guard.sql`: `guard_ultimo_superadmin()` + `AFTER UPDATE OR DELETE ... FOR EACH STATEMENT` trigger — statement-level, not an RLS `USING` check (D5, unsound for multi-row demotions); apply.
 - [ ] 2.6 Manual SQL test: aal1 insert/update on `app_admins` refused, aal2 succeeds, anon denied on all 6 tables, demoting/deleting the last superadmin raises `ultimo_superadmin_protegido`.
-- [ ] 2.7 Create `src/features/auth/mfa.ts`: enroll/challenge/verify + forced-enrollment gate for superadmin sessions.
-- [ ] 2.8 Create `src/features/admin/index.ts`: admin list, add/remove/change role; map `ultimo_superadmin_protegido` to a Spanish UI message.
+- [x] 2.7 Create `src/features/auth/mfa.ts`: enroll/challenge/verify + forced-enrollment gate for superadmin sessions.
+- [x] 2.8 Create `src/features/admin/index.ts`: admin list, add/remove/change role; map `ultimo_superadmin_protegido` to a Spanish UI message.
 
 ## Phase 3: Public View + Bank Config
 
