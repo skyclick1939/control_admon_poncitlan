@@ -37,7 +37,7 @@ This documentation set was independently reviewed twice this session (once by a 
 
 **Phase 1–4 — NOT started.** Next up is Phase 1 (tasks 1.1–1.13 in `tasks.md`): Vite + TypeScript scaffolding, the `money.ts`/`escape.ts` pure modules (fixes a real pre-existing rounding bug), extracting `index.html` into feature modules, and flipping `strict_tdd: true` once Vitest exists.
 
-**Git**: as of this handoff, Phase 0's artifacts (this file, `openspec/`, `supabase/sql/phase0_down.sql`, `.gitignore`) are being committed and pushed to `main` as PR1 of a 6-PR chained delivery plan (`stacked-to-main`). Check `git log`/`gh pr list` to confirm what actually landed if this file is stale.
+**Git**: Phase 0's artifacts (this file, `openspec/`, `supabase/sql/phase0_down.sql`, `.gitignore`) are **committed locally** (commit `555ae15` on `main`) but **NOT pushed** — `git push origin main` failed with a 403: the authenticated GitHub identity on this machine (`consultores-orion`, via `gh auth status`) does not have write access to `skyclick1939/control_admon_poncitlan`. This needs to be resolved by the project owner (add `consultores-orion` as a collaborator, or push from/authenticate as an account that already has access) before PR1 actually reaches GitHub/Vercel. Run `git log --oneline -3` and `git status` first thing in a new session to confirm whether this was resolved since.
 
 ## Facts a new session must NOT re-derive (already investigated, would waste time re-checking)
 
