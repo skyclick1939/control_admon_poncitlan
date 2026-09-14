@@ -51,11 +51,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 1: Vite + TypeScript + Money + Escaping (no DB change)
 
-- [ ] 1.1 Create `package.json`, `tsconfig.json`, `vite.config.ts` (multi-entry stub); install vite, typescript, vitest, pinned Tailwind Vite plugin, chart.js, `@supabase/supabase-js`.
-- [ ] 1.2 RED: `src/lib/money.test.ts` — `splitEvenly` (1–40 shares × 0.01/100.00/33.33), `allocateFifo` (settle/partial/overpay), `toCents` NaN/Infinity — failing (module absent).
-- [ ] 1.3 GREEN: implement `src/lib/money.ts` (`toCents`, `toPesos`, `formatMXN`, `splitEvenly`, `allocateFifo`) to pass 1.2.
-- [ ] 1.4 RED: `src/lib/escape.test.ts` — `<script>`, `"`, `'`, `&`, `<img onerror>` — failing.
-- [ ] 1.5 GREEN: implement `src/lib/escape.ts` (`escapeHtml`, `setText`) to pass 1.4.
+- [x] 1.1 Create `package.json`, `tsconfig.json`, `vite.config.ts` (multi-entry stub); install vite, typescript, vitest, pinned Tailwind Vite plugin, chart.js, `@supabase/supabase-js`.
+- [x] 1.2 RED: `src/lib/money.test.ts` — `splitEvenly` (1–40 shares × 0.01/100.00/33.33), `allocateFifo` (settle/partial/overpay), `toCents` NaN/Infinity — failing (module absent).
+- [x] 1.3 GREEN: implement `src/lib/money.ts` (`toCents`, `toPesos`, `formatMXN`, `splitEvenly`, `allocateFifo`) to pass 1.2.
+- [x] 1.4 RED: `src/lib/escape.test.ts` — `<script>`, `"`, `'`, `&`, `<img onerror>` — failing.
+- [x] 1.5 GREEN: implement `src/lib/escape.ts` (`escapeHtml`, `setText`) to pass 1.4.
 - [ ] 1.6 Create `src/lib/supabase.ts`, `src/lib/types.ts` (incl. row types), `src/app.ts` (shared state + `refresh()` callback), `src/main.ts`.
 - [ ] 1.7 Extract `src/features/auth/{index.ts,session.ts}` from `index.html` (login/logout only; MFA lands in Phase 2).
 - [ ] 1.8 Extract `src/features/dashboard/{index.ts,charts.ts}`; replace `innerHTML +=` with `escapeHtml`/`setText`.
