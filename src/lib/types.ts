@@ -70,3 +70,27 @@ export interface AssuranceLevelStatus {
   currentLevel: AssuranceLevel;
   nextLevel: AssuranceLevel;
 }
+
+/** Row of `public.configuracion_bancaria` (design.md Database Design — Phase 3). Singleton, always `id: 1`. */
+export interface ConfiguracionBancaria {
+  id: number;
+  banco: string;
+  clabe: string;
+  titular: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+/**
+ * Response contract of the public, unauthenticated `api/debt-view` function
+ * (design.md `api/debt-view.ts` interface; specs public-debt-view,
+ * bank-config). Deliberately excludes member UUIDs, status, emails,
+ * capturador identity, and `observaciones` — see design.md's "Deliberately
+ * excluded" note.
+ */
+export interface DebtViewResponse {
+  generatedAt: string;
+  totalPendienteCents: number;
+  deudores: { nickname: string; pendienteCents: number }[];
+  banco: { banco: string; clabe: string; titular: string } | null;
+}

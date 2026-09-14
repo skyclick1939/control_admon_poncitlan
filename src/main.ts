@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { checkSession, initAuth } from './features/auth';
 import { challengeTotp, enrollTotp, hasVerifiedTotpFactor, requiresForcedEnrollment, verifyTotp } from './features/auth/mfa';
 import { initAdmin } from './features/admin';
+import { initBankConfig } from './features/admin/bank-config';
 import { checkCurrentAdmin } from './features/admin/repo';
 import { initApoyos } from './features/apoyos';
 import { initializeDashboard } from './features/dashboard';
@@ -42,6 +43,7 @@ initMiembros(app);
 initApoyos({ app, getCurrentUser });
 const pagosApi = initPagos({ app, getCurrentUser });
 const adminApi = initAdmin({ getCurrentUser });
+const bankConfigApi = initBankConfig({ getCurrentUser });
 
 const setActiveView = (viewId: string): void => {
   document.querySelectorAll('.page-content').forEach((view) => view.classList.add('view-hidden'));
@@ -52,7 +54,10 @@ const setActiveView = (viewId: string): void => {
   });
 
   if (viewId === 'pagos-content') pagosApi.renderPagosForm();
-  if (viewId === 'admin-content') void adminApi.refresh();
+  if (viewId === 'admin-content') {
+    void adminApi.refresh();
+    void bankConfigApi.refresh();
+  }
   if (viewId === 'main-dashboard-content') void initializeDashboard();
 
   mainSidebar.classList.remove('open');

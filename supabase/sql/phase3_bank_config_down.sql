@@ -1,0 +1,23 @@
+-- ============================================================================
+-- Phase 3 DOWN script — evolucion-plataforma-arca
+--
+-- Reverses phase3_bank_config.sql. Only run this if Phase 3's bank-config
+-- table needs to be rolled back after being applied to the live database.
+--
+-- STATUS: drafted, NOT yet applied — contingency script, prepared ahead of
+-- Phase 3's live execution per the same rollback-readiness practice Phase 0
+-- and Phase 2 used (see phase0_down.sql, phase2_down.sql).
+--
+-- configuracion_bancaria is a brand-new table with no pre-existing policies
+-- or grants to restore (unlike Phase 2's rollback, which had to recreate 8
+-- prior policies on 4 original tables) -- rollback here is a straightforward
+-- drop, matching tasks.md's own rollback-boundary note for this work unit
+-- ("drop configuracion_bancaria").
+-- ============================================================================
+drop table if exists public.configuracion_bancaria;
+
+-- ----------------------------------------------------------------------------
+-- Verify: configuracion_bancaria no longer exists; api/debt-view.ts's query
+-- against it will error server-side (502, per its own error handling) until
+-- either this table is recreated or that query is removed/guarded.
+-- ----------------------------------------------------------------------------
