@@ -2,8 +2,9 @@
 -- Phase 2 — Seed the first superadmin row (bootstrap)
 -- evolucion-plataforma-arca, tasks.md task 2.2
 --
--- STATUS: drafted, NOT yet applied to the live database. Requires explicit
--- project-owner sign-off before execution (same precedent as Phase 0).
+-- STATUS: APPLIED live 2026-09-13, with explicit project-owner sign-off
+-- (same precedent as Phase 0). Verified read-back: exactly one row,
+-- fors@gmail.com, rol='superadmin'.
 --
 -- Companion to phase2_roles.sql — run AFTER that script creates app_admins.
 --

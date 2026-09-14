@@ -2,8 +2,9 @@
 -- Phase 2 — AAL2 restrictive policies on app_admins writes
 -- evolucion-plataforma-arca, tasks.md task 2.4
 --
--- STATUS: drafted, NOT yet applied to the live database. Requires explicit
--- project-owner sign-off before execution (same precedent as Phase 0).
+-- STATUS: APPLIED live 2026-09-13, with explicit project-owner sign-off
+-- (same precedent as Phase 0). Verified read-back: all 3 policies are
+-- RESTRICTIVE, scoped to insert/update/delete only.
 --
 -- Source: design.md "The AAL2 boundary (research C1)". Transcribed verbatim.
 --

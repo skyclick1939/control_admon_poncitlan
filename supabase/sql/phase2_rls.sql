@@ -2,8 +2,10 @@
 -- Phase 2 — RLS: drop blanket policies, add is_admin()-scoped policies
 -- evolucion-plataforma-arca, tasks.md task 2.3
 --
--- STATUS: drafted, NOT yet applied to the live database. Requires explicit
--- project-owner sign-off before execution (same precedent as Phase 0).
+-- STATUS: APPLIED live 2026-09-13, with explicit project-owner sign-off
+-- (same precedent as Phase 0). Verified read-back: the 8 old policies are
+-- gone, the new is_admin()/is_superadmin()-scoped policies are present on
+-- all 5 tables.
 --
 -- Must be applied AFTER phase2_roles.sql (is_admin()/is_superadmin() must
 -- exist) and BEFORE phase2_aal2.sql (the AAL2 restrictive policies narrow

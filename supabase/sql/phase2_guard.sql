@@ -2,8 +2,9 @@
 -- Phase 2 — Last-superadmin protection guard
 -- evolucion-plataforma-arca, tasks.md task 2.5
 --
--- STATUS: drafted, NOT yet applied to the live database. Requires explicit
--- project-owner sign-off before execution (same precedent as Phase 0).
+-- STATUS: APPLIED live 2026-09-13, with explicit project-owner sign-off
+-- (same precedent as Phase 0). Verified read-back: trg_guard_ultimo_superadmin
+-- exists on app_admins.
 --
 -- Source: design.md "Last-superadmin guard (D5)". Transcribed verbatim.
 --

@@ -2,9 +2,10 @@
 -- Phase 2 — Roles: app_admins table + is_admin()/is_superadmin() helpers
 -- evolucion-plataforma-arca, tasks.md task 2.1
 --
--- STATUS: drafted, NOT yet applied to the live database. Requires explicit
--- project-owner sign-off before execution (same precedent as Phase 0 — see
--- the "Sign-off record" note at the top of tasks.md's Phase 0 section).
+-- STATUS: APPLIED live 2026-09-13 against the shared Supabase project, with
+-- explicit project-owner sign-off (same precedent as Phase 0 — see the
+-- "Sign-off record" note at the top of tasks.md's Phase 0 section). Verified
+-- read-back: app_admins exists, both functions exist with search_path=''.
 --
 -- Source: design.md "Database Design > New tables" and "> Role helpers".
 -- Transcribed verbatim; no SQL improvised beyond what design.md specifies.
