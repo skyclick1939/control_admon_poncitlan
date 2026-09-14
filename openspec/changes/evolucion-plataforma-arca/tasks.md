@@ -67,7 +67,7 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Roles + MFA
 
-**SQL status**: SQL for 2.1-2.6 is drafted and ready for review in `supabase/sql/`; none has been applied to the live database yet — pending explicit owner sign-off (see Phase 0 for the precedent).
+**SQL status**: SQL for 2.1-2.6 is drafted and ready for review in `supabase/sql/`; none has been applied to the live database yet — pending explicit owner sign-off (see Phase 0 for the precedent). `supabase/sql/phase2_down.sql` (rollback script, orchestrator-drafted and independently reviewed against `phase0_down.sql`) exists and is ready before any live execution, matching Phase 0's rollback-readiness practice.
 
 - [ ] 2.1 `supabase/sql/phase2_roles.sql`: `app_admins` DDL, `is_admin()`/`is_superadmin()` as `security definer` with `set search_path = ''` (D3 — avoids infinite recursion); revoke/grant execute; apply.
 - [ ] 2.2 Seed the first superadmin row by SQL (bootstrap — no UI path exists yet).
