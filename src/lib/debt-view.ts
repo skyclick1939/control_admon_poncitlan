@@ -2,7 +2,7 @@ import { toCents } from './money.js';
 
 export interface CargoPendienteRow {
   monto_pendiente: number;
-  miembros: { nickname: string } | null;
+  miembros: { nickname: string; activo: boolean } | null;
 }
 
 export interface DeudorEntry {
@@ -29,6 +29,7 @@ export function aggregateDebtByMember(rows: readonly CargoPendienteRow[]): Aggre
   for (const row of rows) {
     const nickname = row.miembros?.nickname;
     if (!nickname) continue;
+    if (row.miembros?.activo === false) continue;
 
     const cents = toCents(row.monto_pendiente);
     if (cents <= 0) continue;

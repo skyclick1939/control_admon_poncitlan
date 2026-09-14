@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
 import { escapeHtml } from '../../lib/escape';
+import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
 import type { Miembro } from '../../lib/types';
 import { saveApoyo } from './repo';
@@ -25,7 +26,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   const motivoApoyoInput = document.getElementById('motivo_apoyo') as HTMLInputElement;
 
   function getMembersToCharge(): Miembro[] {
-    const members = app.state.members;
+    const members = activeMiembros(app.state.members);
     if (tipoDivisionSelect.value === 'TODOS') return members;
     if (tipoDivisionSelect.value === 'FULLPARCH') return members.filter((m) => m.status === 'fullparch');
     if (tipoDivisionSelect.value === 'INDIVIDUAL') {
@@ -45,7 +46,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     capturadoPorInput.value = currentUser.email ?? '';
     fechaApoyoInput.valueAsDate = new Date();
 
-    membersCheckboxList.innerHTML = app.state.members
+    membersCheckboxList.innerHTML = activeMiembros(app.state.members)
       .map(
         (member) => `
         <div class="flex items-center">

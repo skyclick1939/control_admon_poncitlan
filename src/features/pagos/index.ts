@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
 import { escapeHtml, setText } from '../../lib/escape';
+import { activeMiembros } from '../../lib/miembros';
 import { toCents, toPesos } from '../../lib/money';
 import { aplicarPago, fetchCargosPendientes } from './repo';
 
@@ -35,7 +36,9 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
   function renderPagosForm(): void {
     pagoMiembroSelect.innerHTML =
       '<option value="">-- Seleccione un miembro --</option>' +
-      app.state.members.map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`).join('');
+      activeMiembros(app.state.members)
+        .map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`)
+        .join('');
     pagoForm.reset();
     pagoInfoDisplay.classList.add('view-hidden');
     deudaDisplay.classList.add('view-hidden');

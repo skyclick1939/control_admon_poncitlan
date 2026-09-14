@@ -58,7 +58,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
 
     const [cargosResult, bancoResult] = await Promise.all([
-      db.from('cargos').select('monto_pendiente, miembros(nickname)').eq('estado', 'pendiente'),
+      db.from('cargos').select('monto_pendiente, miembros(nickname, activo)').eq('estado', 'pendiente'),
       db.from('configuracion_bancaria').select('banco, clabe, titular').eq('id', 1).maybeSingle(),
     ]);
 

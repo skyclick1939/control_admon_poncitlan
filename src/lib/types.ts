@@ -3,6 +3,8 @@ export interface Miembro {
   nickname: string;
   status: 'fullparch' | 'prospecto';
   created_at: string;
+  /** Retirement flag (design.md Member lifecycle DDL; spec member-lifecycle). `false` excludes the member from apoyo candidates, the pago selector, and the public debt view, without deleting their history. */
+  activo: boolean;
 }
 
 export interface Cargo {
