@@ -56,14 +56,14 @@ Chain strategy: stacked-to-main
 - [x] 1.3 GREEN: implement `src/lib/money.ts` (`toCents`, `toPesos`, `formatMXN`, `splitEvenly`, `allocateFifo`) to pass 1.2.
 - [x] 1.4 RED: `src/lib/escape.test.ts` — `<script>`, `"`, `'`, `&`, `<img onerror>` — failing.
 - [x] 1.5 GREEN: implement `src/lib/escape.ts` (`escapeHtml`, `setText`) to pass 1.4.
-- [ ] 1.6 Create `src/lib/supabase.ts`, `src/lib/types.ts` (incl. row types), `src/app.ts` (shared state + `refresh()` callback), `src/main.ts`.
-- [ ] 1.7 Extract `src/features/auth/{index.ts,session.ts}` from `index.html` (login/logout only; MFA lands in Phase 2).
-- [ ] 1.8 Extract `src/features/dashboard/{index.ts,charts.ts}`; replace `innerHTML +=` with `escapeHtml`/`setText`.
-- [ ] 1.9 Extract `src/features/miembros/{index.ts,repo.ts}`; escape output at `index.html:561, 605`.
-- [ ] 1.10 Extract `src/features/apoyos/{index.ts,repo.ts}`; replace the unrounded `index.html:658` float split with `splitEvenly`; escape `index.html:705`.
-- [ ] 1.11 Extract `src/features/pagos/{index.ts,repo.ts}`; replace the `index.html:793` `<= 0.001` epsilon with `allocateFifo`; escape `index.html:752`; surface `unappliedCents > 0` as a UI warning/block instead of silently dropping the surplus.
-- [ ] 1.12 Create `.env.example` documenting `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`; set both in Vercel project settings.
-- [ ] 1.13 Flip `openspec/config.yaml`: `strict_tdd: true`, `test_command: "vitest run"`, `framework: "vitest"` (moved here from Phase 4 — enforces Vitest before the two security-critical phases below).
+- [x] 1.6 Create `src/lib/supabase.ts`, `src/lib/types.ts` (incl. row types), `src/app.ts` (shared state + `refresh()` callback), `src/main.ts`.
+- [x] 1.7 Extract `src/features/auth/{index.ts,session.ts}` from `index.html` (login/logout only; MFA lands in Phase 2).
+- [x] 1.8 Extract `src/features/dashboard/{index.ts,charts.ts}`; replace `innerHTML +=` with `escapeHtml`/`setText`.
+- [x] 1.9 Extract `src/features/miembros/{index.ts,repo.ts}`; escape output at `index.html:561, 605`.
+- [x] 1.10 Extract `src/features/apoyos/{index.ts,repo.ts}`; replace the unrounded `index.html:658` float split with `splitEvenly`; escape `index.html:705`.
+- [x] 1.11 Extract `src/features/pagos/{index.ts,repo.ts}`; replace the `index.html:793` `<= 0.001` epsilon with `allocateFifo`; escape `index.html:752`; surface `unappliedCents > 0` as a UI warning/block instead of silently dropping the surplus.
+- [x] 1.12 Create `.env.example` documenting `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`; set both in Vercel project settings.
+- [x] 1.13 Flip `openspec/config.yaml`: `strict_tdd: true`, `test_command: "vitest run"`, `framework: "vitest"` (moved here from Phase 4 — enforces Vitest before the two security-critical phases below).
 
 ## Phase 2: Roles + MFA
 
