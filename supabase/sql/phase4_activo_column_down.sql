@@ -1,0 +1,24 @@
+-- ============================================================================
+-- Phase 4 DOWN script — activo column
+-- evolucion-plataforma-arca
+--
+-- Reverses phase4_activo_column.sql. Only run this if the activo column
+-- needs to be rolled back after being applied to the live database.
+--
+-- STATUS: rollback for phase4_activo_column.sql, kept ready per the same
+-- rollback-readiness practice Phase 0/2/3 used (see phase0_down.sql,
+-- phase2_down.sql, phase3_bank_config_down.sql). Not run -- the column has
+-- not been applied live yet.
+--
+-- Dropping activo is additive-safe to reverse: no other column or constraint
+-- depends on it, and no data is lost that existed before phase4_activo_column
+-- ran (the column itself, and its backfilled default, are the only thing
+-- this creates).
+-- ============================================================================
+alter table public.miembros drop column activo;
+
+-- ----------------------------------------------------------------------------
+-- Verify: miembros no longer has an activo column; any query or UI code that
+-- references it will fail until either this column is recreated or that code
+-- is removed/guarded.
+-- ----------------------------------------------------------------------------
