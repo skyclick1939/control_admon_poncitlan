@@ -112,3 +112,27 @@ export interface DebtViewResponse {
   deudores: { nickname: string; pendienteCents: number }[];
   banco: { banco: string; clabe: string; titular: string } | null;
 }
+
+/**
+ * Response contract of the token-scoped `api/member-view` function
+ * (design.md D11; specs member-private-view). Mirrors DebtViewResponse's
+ * shape discipline. Deliberately excludes: the member UUID, `status`
+ * (fullparch/prospecto), `activo`, `created_at`, `registro_apoyos.motivo`
+ * and `registro_pagos.observaciones` (D13), operator identity
+ * (`capturado_por` / `registrado_por`), row ids, the token or its hash,
+ * and every other member's data. The function never uses select('*') — the
+ * explicit column list is the guard.
+ */
+export interface MemberViewResponse {
+  generatedAt: string;
+  nickname: string;
+  totalPendienteCents: number;
+  totalPagadoCents: number;
+  cargos: {
+    fecha: string;
+    estado: 'pendiente' | 'pagado';
+    originalCents: number;
+    pendienteCents: number;
+  }[]; // fecha desc
+  pagos: { fecha: string; montoCents: number }[]; // fecha desc
+}
