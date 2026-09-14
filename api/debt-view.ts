@@ -49,41 +49,50 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const db = getServiceRoleClient();
-  if (!db) {
-    console.error('debt-view: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  try {
+    const db = getServiceRoleClient();
+    if (!db) {
+      console.error('debt-view: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+      sendJson(res, 502, { error: 'unavailable' });
+      return;
+    }
+
+    const [cargosResult, bancoResult] = await Promise.all([
+      db.from('cargos').select('monto_pendiente, miembros(nickname)').eq('estado', 'pendiente'),
+      db.from('configuracion_bancaria').select('banco, clabe, titular').eq('id', 1).maybeSingle(),
+    ]);
+
+    if (cargosResult.error || bancoResult.error) {
+      // Detail logged server-side only — echoing the driver error would leak
+      // table/column names to anonymous callers (design.md "Errors").
+      console.error('debt-view: supabase query failed', cargosResult.error ?? bancoResult.error);
+      sendJson(res, 502, { error: 'unavailable' });
+      return;
+    }
+
+    // The untyped supabase-js client heuristically infers `miembros` as an array
+    // from the plural table name; at runtime (cargos.miembro_id -> miembros.id
+    // is many-to-one) it is a single object or null (see dashboard/index.ts's
+    // identical caveat).
+    const { totalPendienteCents, deudores } = aggregateDebtByMember(
+      (cargosResult.data ?? []) as unknown as CargoPendienteRow[],
+    );
+
+    const responseBody: DebtViewResponse = {
+      generatedAt: new Date().toISOString(),
+      totalPendienteCents,
+      deudores,
+      banco: bancoResult.data ?? null,
+    };
+
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');
+    sendJson(res, 200, responseBody);
+  } catch (err) {
+    // getServiceRoleClient()'s createClient() call throws synchronously on a
+    // malformed SUPABASE_URL, and any other unexpected failure in this path
+    // must not leak an opaque platform 500 — the same 502 contract as a
+    // Supabase query error applies here (design.md "Errors").
+    console.error('debt-view: unhandled error', err);
     sendJson(res, 502, { error: 'unavailable' });
-    return;
   }
-
-  const [cargosResult, bancoResult] = await Promise.all([
-    db.from('cargos').select('monto_pendiente, miembros(nickname)').eq('estado', 'pendiente'),
-    db.from('configuracion_bancaria').select('banco, clabe, titular').eq('id', 1).maybeSingle(),
-  ]);
-
-  if (cargosResult.error || bancoResult.error) {
-    // Detail logged server-side only — echoing the driver error would leak
-    // table/column names to anonymous callers (design.md "Errors").
-    console.error('debt-view: supabase query failed', cargosResult.error ?? bancoResult.error);
-    sendJson(res, 502, { error: 'unavailable' });
-    return;
-  }
-
-  // The untyped supabase-js client heuristically infers `miembros` as an array
-  // from the plural table name; at runtime (cargos.miembro_id -> miembros.id
-  // is many-to-one) it is a single object or null (see dashboard/index.ts's
-  // identical caveat).
-  const { totalPendienteCents, deudores } = aggregateDebtByMember(
-    (cargosResult.data ?? []) as unknown as CargoPendienteRow[],
-  );
-
-  const responseBody: DebtViewResponse = {
-    generatedAt: new Date().toISOString(),
-    totalPendienteCents,
-    deudores,
-    banco: bancoResult.data ?? null,
-  };
-
-  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');
-  sendJson(res, 200, responseBody);
 }
