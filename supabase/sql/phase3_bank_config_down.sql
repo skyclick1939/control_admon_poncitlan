@@ -4,9 +4,9 @@
 -- Reverses phase3_bank_config.sql. Only run this if Phase 3's bank-config
 -- table needs to be rolled back after being applied to the live database.
 --
--- STATUS: drafted, NOT yet applied — contingency script, prepared ahead of
--- Phase 3's live execution per the same rollback-readiness practice Phase 0
--- and Phase 2 used (see phase0_down.sql, phase2_down.sql).
+-- STATUS: rollback for the live-applied phase3_bank_config.sql (applied
+-- 2026-09-14). Not run — kept ready per the same rollback-readiness practice
+-- Phase 0 and Phase 2 used (see phase0_down.sql, phase2_down.sql).
 --
 -- configuracion_bancaria is a brand-new table with no pre-existing policies
 -- or grants to restore (unlike Phase 2's rollback, which had to recreate 8

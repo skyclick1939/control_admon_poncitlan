@@ -2,11 +2,12 @@
 -- Phase 3 — Bank config: configuracion_bancaria DDL, RLS, seed row
 -- evolucion-plataforma-arca, tasks.md task 3.1
 --
--- STATUS: DRAFTED, ready — NOT YET APPLIED. This script has NOT been run
--- against the live Supabase project "arca". Explicit, separate project-owner
--- sign-off is required before live execution (same precedent as Phase 0 and
--- Phase 2 — see tasks.md's Phase 0 "Sign-off record" note). Do NOT run this
--- against the live database without that sign-off.
+-- STATUS: APPLIED live 2026-09-14. Executed against the live Supabase
+-- project "arca" via the Management API database/query endpoint, with
+-- explicit project-owner sign-off obtained beforehand (same precedent as
+-- Phase 0 and Phase 2). Read-back verification: pg_policies shows exactly 1
+-- policy on configuracion_bancaria, information_schema.role_table_grants
+-- shows 0 rows for anon on this table, and the id=1 seed row exists.
 --
 -- Source: design.md "Database Design > New tables" (configuracion_bancaria)
 -- and "> RLS for all 6 tables". Transcribed verbatim; is_admin() already
