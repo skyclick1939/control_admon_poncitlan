@@ -10,7 +10,7 @@ A club/organization expense-tracking app ("Control de Gastos Poncitlán"), being
 
 A full SDD (Spec-Driven Development) cycle, planned and partially executed via the `gentle-ai` ecosystem (`/gentle-sdd-*` commands / native `sdd-*` subagents). Turns the single-file app into a robust, tested, role-based platform: closes a critical open security hole (done), migrates to Vite+TypeScript (done), adds a superadmin/admin role model with TOTP MFA (done), and will add a public no-login debt dashboard and a bank-account info panel (not started).
 
-**First command to run in a new session**: `gentle-ai sdd-status evolucion-plataforma-arca --cwd <repo> --json --instructions` — this is the authoritative, machine-readable status (dependency states, next recommended phase, blockers). As of this handoff it reports **26/38 tasks complete, `nextRecommended: apply`**. Trust its JSON over any prose summary, including this file, if they ever disagree.
+**First command to run in a new session**: `gentle-ai sdd-status evolucion-plataforma-arca --cwd <repo> --json --instructions` — this is the authoritative, machine-readable status (dependency states, next recommended phase, blockers). As of this handoff it reports **30/38 tasks complete, `nextRecommended: apply`**. Trust its JSON over any prose summary, including this file, if they ever disagree.
 
 ## Where the documentation lives (canonical, versioned in this repo)
 
@@ -26,8 +26,10 @@ A full SDD (Spec-Driven Development) cycle, planned and partially executed via t
 - `supabase/sql/phase2_{roles,seed_superadmin,rls,aal2,guard}.sql` — Phase 2's SQL, each headed `-- STATUS: APPLIED live 2026-09-13` with its own read-back confirmation
 - `supabase/sql/phase2_down.sql` — rollback for Phase 2 (drops the guard trigger first, then the new policies, then recreates Phase 0's exact 8 policies verbatim, then drops `app_admins`/the two helper functions)
 - `supabase/sql/phase2_manual_tests.sql` — already drafted, ready-to-run SQL for task 2.6 (aal1 refused / aal2 succeeds / anon denied / last-superadmin-guard cases), explicitly headed as not executed by any batch — a human runs this manually through a real session. Read/reuse this before writing new test SQL for 2.6.
+- `supabase/sql/phase3_bank_config.sql` — `configuracion_bancaria` DDL + RLS, headed `-- STATUS: APPLIED live 2026-09-14` with its own read-back confirmation
+- `supabase/sql/phase3_bank_config_down.sql` — rollback for Phase 3 (drops `configuracion_bancaria`; no prior policies/grants to restore, it's a brand-new table)
 
-## Current status — Phases 0, 1, and 2 are DONE, live, and pushed. Phase 3–4 not started.
+## Current status — Phases 0, 1, and 2 are DONE, live, and pushed. Phase 3 nearly done (only a Vercel dashboard step + its E2E test remain). Phase 4 not started.
 
 **Phase 0 (security fix) — DONE, live-verified, sign-off obtained.** Public self-signup closed (`disable_signup: true`), `anon` has zero grants on the 4 original tables, the 8 pre-Phase-2 `authenticated` policies were left untouched at the time (later replaced in Phase 2). `auth.users` audited: 9 accounts, none unrecognized. `fors@gmail.com` (project owner) is the sole superadmin as of Phase 2. `alexis@gmail.com` (former capturista, 105 linked financial records) was kept, not deleted, and lost elevated access naturally in Phase 2 by not being added to `app_admins`. Live-DB sign-off for this phase is recorded in Engram (project `control_admon_poncitlan`) and at the top of `tasks.md`'s Phase 0 section.
 
@@ -62,7 +64,7 @@ Tripped `changed_line_budget_exceeded` on several batches (Phase 0, Phase 1's tw
 
 ## Git
 
-Everything through Phase 2 (SQL + TypeScript + the admin/MFA UI wiring) is committed AND pushed to `origin/main` as of commit `a7df9a6`. This HANDOFF.md rewrite is committed on top of that (check `git log -1 -- HANDOFF.md` if you need the exact hash) and pushed — if `git status --short` ever shows this file as modified in a fresh session, someone edited it locally after cloning; don't assume it's still in flight. The default `gh`/git identity on this machine is `consultores-orion`, which does NOT have write access to this repo — all pushes used a one-off classic PAT for `skyclick1939` (stored in Engram, topic `config/github-pat-skyclick1939-control-admon-poncitlan`), passed via an inline authenticated URL rather than `gh auth login`, specifically to avoid disrupting `consultores-orion`'s default auth for other projects on this machine. Use the same pattern for future pushes.
+Everything through Phase 3's SQL-applied status update is committed AND pushed to `origin/main` as of commit `ad264a3` (Phase 3 code: `a116c88`; SQL-applied status: `ad264a3`). This HANDOFF.md rewrite is committed on top of that (check `git log -1 -- HANDOFF.md` if you need the exact hash) and pushed — if `git status --short` ever shows this file as modified in a fresh session, someone edited it locally after cloning; don't assume it's still in flight. The default `gh`/git identity on this machine is `consultores-orion`, which does NOT have write access to this repo — all pushes used a one-off classic PAT for `skyclick1939` (stored in Engram, topic `config/github-pat-skyclick1939-control-admon-poncitlan`), passed via an inline authenticated URL rather than `gh auth login`, specifically to avoid disrupting `consultores-orion`'s default auth for other projects on this machine. Use the same pattern for future pushes.
 
 ## Facts a new session must NOT re-derive (already investigated, would waste time re-checking)
 
@@ -81,6 +83,10 @@ The `gentle-ai` SDD workflow requires a one-time-per-session preflight (Pace / A
 
 Receipt-driven development (native code review) is **off** for this repo (`gentle-ai review mode status` confirms). Delivery follows ordinary repository policy — no native review gate blocks anything here. This is the user's own choice; don't second-guess it.
 
-## What's next: Phase 3 (Public View + Bank Config)
+## Phase 3 (Public View + Bank Config) — code + live SQL done, one human step left
 
-Not started. Per `tasks.md`, tasks 3.1–3.6: a `configuracion_bancaria` singleton table + `is_admin()` policies (live-DB change — will need the same explicit sign-off pattern as Phases 0 and 2), an admin-only bank-config UI, a `service_role`-backed `api/debt-view.ts` serverless function (explicit column list only, never `select('*')`, `405`/`502` handling, a `postbuild` script grepping `dist/` for `service_role` leakage), and a public no-login `vista/index.html` entry point that imports only `lib/escape`/`lib/types` — never `lib/supabase.ts` — to keep the anon key and any privileged access out of that bundle. Read `design.md`'s Phase 3 section and `specs/{public-debt-view,bank-config}/spec.md` before starting. Expect the same pattern used for Phase 2: draft the SQL/code fully, verify locally, get explicit sign-off, then execute live.
+Tasks 3.1–3.4 are DONE: `configuracion_bancaria` singleton table + a single `is_admin()`-scoped `FOR ALL` RLS policy (deviation from design.md's literal 2-row RLS table forced by Postgres syntax — `CREATE POLICY`'s `FOR` clause can't take a comma list — semantics are identical) was drafted, signed off, applied live 2026-09-14, and read-back verified (`pg_policies` = 1 row, `anon` grants = 0, seed row present); the admin-only bank-config UI, the `service_role`-backed `api/debt-view.ts` (explicit column lists, never `select('*')`, 405/502 handling), the `postbuild` service_role-leakage guard, and the public `vista/index.html` + `src/public-view.ts` entry (verified to import only `lib/escape`/`lib/types`, never `lib/supabase.ts`, against a real non-dead-code-eliminated build) are all implemented, unit-tested (152/152 passing), and pushed to `origin/main` (commits `a116c88`, `ad264a3`).
+
+**What's next — task 3.5's remaining half, blocked on human action**: set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (both unprefixed, **Secret** type — never `VITE_`-prefixed, never exposed to the client bundle) in the Vercel project's dashboard. No agent session has Vercel credentials/CLI access; this genuinely needs the project owner. Once set, task 3.6 (manual E2E on a preview deploy: `/vista/` with no session shows debt + bank and nothing else, XSS payload in a nickname renders as text, both `/vista/` and `/api/debt-view` resolve) can run, closing Phase 3.
+
+**After that**: Phase 4 (Lifecycle, tasks 4.1–4.5) — not started, not yet explored in this handoff; read `tasks.md`'s Phase 4 block and `design.md` before starting.
