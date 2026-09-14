@@ -1,0 +1,65 @@
+schema: spec-driven
+
+context: |
+  Tech stack: single-file index.html; Tailwind, Chart.js, @supabase/supabase-js@2 via CDN (ESM)
+  Architecture: static site, no build step, no package.json, deployed to Vercel (zero-config)
+  Backend: Supabase project "arca" (shared), tables miembros/cargos/registro_apoyos/registro_pagos
+  Testing: none today; Vitest planned once the Vite migration lands
+  Target: Vite modular JS (no framework), RBAC (superadmin/admin/member), public dashboard, TOTP MFA
+
+strict_tdd: false
+
+testing:
+  projects:
+    - path: "."
+      stack: "Static HTML + CDN libs (Tailwind, Chart.js, Supabase JS v2)"
+      test_command: null
+      framework: null
+      coverage_command: null
+      lint_command: null
+      typecheck_command: null
+      format_command: null
+  fallback_reason: >
+    Zero projects discovered under the bounded workspace-discovery rules
+    (no package.json, go.mod, pyproject.toml, or Cargo.toml at root or within
+    two directory levels). Strict TDD resolves to false despite the user's
+    global default (Strict TDD Mode: enabled) because there is no
+    workspace-level test command to enforce RED-GREEN-REFACTOR against.
+    Re-resolve once the planned Vite + Vitest migration lands.
+
+rules:
+  proposal:
+    - Include a rollback plan for risky changes
+    - Scope any Supabase schema/auth change strictly to this app's own tables
+      (originally: miembros, cargos, registro_apoyos, registro_pagos; the
+      evolucion-plataforma-arca change adds app_admins and
+      configuracion_bancaria as app-owned tables under this same rule — see
+      design.md). Never touch unrelated tables in the shared "arca" project
+      (other arca_* tables, n8n_chat_histories, telegram_whitelist)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document the Vite migration path explicitly (module boundaries, build
+      config, Vercel deploy config)
+    - Document the RBAC model (superadmin/admin/member) and the TOTP MFA flow
+      for superadmin
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Forecast the 400 changed-line review budget; recommend chained PRs per
+      delivery_strategy: auto-chain
+  apply:
+    guidelines:
+      - Follow existing code patterns until the Vite migration change lands
+      - After Vite + Vitest are adopted, set tdd: true and populate
+        test_command, then re-resolve strict_tdd at the workspace level
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas, especially schema/auth changes
+      on the shared Supabase project
