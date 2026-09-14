@@ -8,13 +8,13 @@ export interface AdminDeps {
   getCurrentUser: () => User | null;
 }
 
-/**
- * Superadmin-only admin management panel: list, add, remove, change role.
- * Not yet wired into `main.ts`/`index.html` — that integration (nav entry,
- * DOM markup, the "Seguridad"/MFA-enrollment screen from mfa.ts) is a
- * follow-up task; this module is self-contained and ready to be attached.
- */
-export function initAdmin({ getCurrentUser }: AdminDeps): void {
+export interface AdminApi {
+  /** Called by the shell on every navigation to the admin view (mirrors `PagosApi.renderPagosForm`), so the list is fresh once a session exists instead of the pre-login fetch this module used to make at init time. */
+  refresh: () => Promise<void>;
+}
+
+/** Admin management panel: list, add, remove, change role. Wired into `main.ts`'s nav (visible to any `app_admins` row) and refreshed on navigation to the admin view. */
+export function initAdmin({ getCurrentUser }: AdminDeps): AdminApi {
   const addAdminForm = document.getElementById('add-admin-form') as HTMLFormElement;
   const adminTableBody = document.getElementById('admin-table-body')!;
   const adminFeedback = document.getElementById('admin-feedback')!;
@@ -116,5 +116,5 @@ export function initAdmin({ getCurrentUser }: AdminDeps): void {
     }
   });
 
-  void render();
+  return { refresh: render };
 }

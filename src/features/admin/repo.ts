@@ -7,6 +7,20 @@ export async function fetchAdmins(): Promise<AppAdmin[]> {
   return data as AppAdmin[];
 }
 
+/**
+ * The current session's own `app_admins` row, or `null` when it has none.
+ * RLS's `is_admin()`-gated SELECT policy filters out every row for a
+ * non-admin caller, so this doubles as an "is this user an admin/superadmin"
+ * check without a dedicated server endpoint — used by the shell to gate the
+ * admin nav link and the forced-MFA-enrollment screen (specs auth-roles,
+ * superadmin-mfa).
+ */
+export async function checkCurrentAdmin(userId: string): Promise<AppAdmin | null> {
+  const { data, error } = await dbClient.from('app_admins').select('*').eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+  return data as AppAdmin | null;
+}
+
 export interface NuevoAdminInput {
   /** `auth.users.id` of the account being granted a role. That account must already exist (self-signup is disabled — see Phase 0). */
   userId: string;

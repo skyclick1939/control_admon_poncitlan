@@ -78,6 +78,8 @@ Chain strategy: stacked-to-main
 - [x] 2.7 Create `src/features/auth/mfa.ts`: enroll/challenge/verify + forced-enrollment gate for superadmin sessions.
 - [x] 2.8 Create `src/features/admin/index.ts`: admin list, add/remove/change role; map `ultimo_superadmin_protegido` to a Spanish UI message.
 
+**Follow-up (not a numbered task, closed 2026-09-13, commit `66ecf28`):** 2.7/2.8 shipped self-contained and unit-tested but were never mounted into `main.ts`/`index.html`. Closed by adding an "Administración" nav item + view (hidden for non-admins via a new `checkCurrentAdmin` RLS-backed check in `admin/repo.ts`) and a forced-enrollment gate in `main.ts` that blocks a superadmin without a verified TOTP factor from reaching the dashboard until `enrollTotp`/`verifyTotp` completes. `initAdmin` now returns `AdminApi.refresh` (mirrors `PagosApi`) so the admin list loads once a session exists instead of failing under RLS at pre-login page load. Client-side only, per design.md — the real boundary stays the database's restrictive AAL2 policy on `app_admins` writes. Not covered: per-session AAL2 re-challenge before an already-enrolled superadmin's admin-panel writes on a fresh (aal1) session — out of scope for this follow-up, flagged for a future task.
+
 ## Phase 3: Public View + Bank Config
 
 - [ ] 3.1 `supabase/sql/phase3_bank_config.sql`: `configuracion_bancaria` DDL (singleton `check (id = 1)`), `is_admin()` policies, seed row; apply.
