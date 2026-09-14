@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { aggregateDebtByMember, type CargoPendienteRow } from '../src/lib/debt-view';
-import type { DebtViewResponse } from '../src/lib/types';
+import { aggregateDebtByMember, type CargoPendienteRow } from '../src/lib/debt-view.js';
+import type { DebtViewResponse } from '../src/lib/types.js';
 
 // ============================================================================
 // api/debt-view.ts — sole public, unauthenticated read surface (design.md,

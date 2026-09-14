@@ -1,4 +1,4 @@
-import { toCents } from './money';
+import { toCents } from './money.js';
 
 export interface CargoPendienteRow {
   monto_pendiente: number;
