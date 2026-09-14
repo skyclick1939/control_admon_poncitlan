@@ -5,6 +5,13 @@ export interface Miembro {
   created_at: string;
   /** Retirement flag (design.md Member lifecycle DDL; spec member-lifecycle). `false` excludes the member from apoyo candidates, the pago selector, and the public debt view, without deleting their history. */
   activo: boolean;
+  /**
+   * Non-secret issuance timestamp for the member's access token, or `null`
+   * when none has ever been generated (design.md D9/D15). Drives the admin
+   * table's "Generado el ..." label without ever selecting `token_hash`
+   * into the browser.
+   */
+  token_generado_en: string | null;
 }
 
 export interface Cargo {

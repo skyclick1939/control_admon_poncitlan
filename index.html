@@ -164,6 +164,13 @@
                                 </form>
                                  <div id="member-feedback" class="mt-3 text-sm"></div>
                             </div>
+                            <div id="member-token-reveal" class="bg-yellow-50 border border-yellow-300 p-4 rounded-lg mb-8 view-hidden">
+                                <p id="member-token-reveal-message" class="text-sm text-red-600 font-semibold mb-2">Cópialo ahora: no se volverá a mostrar.</p>
+                                <div class="flex gap-2">
+                                    <input id="member-token-reveal-input" type="text" readonly class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
+                                    <button id="member-token-reveal-copy" type="button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Copiar</button>
+                                </div>
+                            </div>
                             <div class="bg-white p-6 rounded-lg shadow-md">
                                 <h2 class="text-xl font-semibold mb-4">Lista de Miembros</h2>
                                 <div class="overflow-x-auto">
@@ -174,6 +181,7 @@
                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Registro</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enlace</th>
                                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                             </tr>
                                         </thead>

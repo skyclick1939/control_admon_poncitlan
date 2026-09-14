@@ -4,7 +4,10 @@ import type { CargoHistorial, Miembro, RegistroPago } from '../../lib/types';
 export async function fetchMembers(): Promise<Miembro[]> {
   const { data, error } = await dbClient
     .from('miembros')
-    .select('*')
+    // Explicit column list, not select('*') (design.md D15): token_hash has
+    // no business in client state. token_generado_en is the non-secret
+    // timestamp the "Generado el ..." label needs.
+    .select('id, nickname, status, created_at, activo, token_generado_en')
     .order('nickname', { ascending: true });
   if (error) throw error;
   return data as Miembro[];
@@ -72,4 +75,20 @@ export async function fetchPagosMiembro(miembroId: string): Promise<RegistroPago
     .order('fecha_pago', { ascending: false });
   if (error) throw error;
   return data as RegistroPago[];
+}
+
+/**
+ * Issues or rotates a member's access token (design.md D9/D10/D16; spec
+ * member-access-token "Single Live Token With Atomic Rotation"). Writing a
+ * new digest overwrites the previous one in the same operation — that
+ * overwrite IS the revocation (D9), not a separate step. `tokenHash` must
+ * already be the lowercase SHA-256 hex digest; this function never
+ * receives or stores the plaintext token (D10).
+ */
+export async function setMemberTokenHash(id: string, tokenHash: string): Promise<void> {
+  const { error } = await dbClient
+    .from('miembros')
+    .update({ token_hash: tokenHash, token_generado_en: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
 }

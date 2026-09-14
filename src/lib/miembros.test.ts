@@ -9,6 +9,7 @@ function makeMiembro(overrides: Partial<Miembro>): Miembro {
     status: overrides.status ?? 'fullparch',
     created_at: overrides.created_at ?? '2026-01-01T00:00:00.000Z',
     activo: overrides.activo ?? true,
+    token_generado_en: overrides.token_generado_en ?? null,
   };
 }
 

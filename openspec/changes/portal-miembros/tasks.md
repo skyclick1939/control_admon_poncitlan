@@ -53,14 +53,14 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Token Issuance (`member-token.ts` + admin UI) — PR3
 
-- [ ] 3.1 RED: `src/lib/member-token.test.ts` — `toBase64Url(32 bytes)` is 43 chars with no `+`/`/`/`=`; `isTokenShape` rejects `null`, `''`, 44 chars, 4 KB, non-base64url, accepts a real token — failing (module absent).
-- [ ] 3.2 RED (D11-timing): same file — static import-graph assertion that `src/lib/member-token.ts` imports no Supabase/IO module, proving `isTokenShape`'s verdict cannot depend on which tokens exist.
-- [ ] 3.3 GREEN: `src/lib/member-token.ts` — `TOKEN_BYTES=32`, `TOKEN_CHARS=43`, `toBase64Url`, `isTokenShape`; runtime-agnostic (no `node:crypto`, no `crypto.subtle`).
-- [ ] 3.4 RED→GREEN: new `src/lib/digest-agreement.test.ts` — `crypto.subtle.digest('SHA-256', …)` and `node:crypto.createHash('sha256')` produce the same hex digest for a fixed vector (the single cross-runtime assumption D10 rests on). *Filename is inferred — design.md does not pin one.*
-- [ ] 3.5 `src/features/miembros/repo.ts` — add `setMemberTokenHash(id, tokenHash)`; change `fetchMembers`'s `select('*')` to the explicit column list per D15 (drops `token_hash` from client state).
-- [ ] 3.6 `src/features/miembros/token.ts` (NEW) — `getRandomValues(32)` → `toBase64Url` → clipboard; `subtle.digest` SHA-256 hex → `setMemberTokenHash`; plaintext never leaves this module (D10).
-- [ ] 3.7 `src/features/miembros/index.ts` + `index.html` — "Enlace" column (`Sin enlace` / `Generado el <fecha>`), Generar/Regenerar button; `window.confirm` on regenerate only, no confirm on first generation; one-time reveal block (readonly input + Copiar + red "no se volverá a mostrar" text); clipboard-denied fallback keeps the input visible/selected; `app.refresh()` clears the reveal (D16).
-- [ ] 3.8 Verify: `npx vitest run src/lib/member-token.test.ts src/lib/digest-agreement.test.ts` — entropy, shape, import-graph, and cross-runtime-digest scenarios all pass.
+- [x] 3.1 RED: `src/lib/member-token.test.ts` — `toBase64Url(32 bytes)` is 43 chars with no `+`/`/`/`=`; `isTokenShape` rejects `null`, `''`, 44 chars, 4 KB, non-base64url, accepts a real token — failing (module absent).
+- [x] 3.2 RED (D11-timing): same file — static import-graph assertion that `src/lib/member-token.ts` imports no Supabase/IO module, proving `isTokenShape`'s verdict cannot depend on which tokens exist.
+- [x] 3.3 GREEN: `src/lib/member-token.ts` — `TOKEN_BYTES=32`, `TOKEN_CHARS=43`, `toBase64Url`, `isTokenShape`; runtime-agnostic (no `node:crypto`, no `crypto.subtle`).
+- [x] 3.4 RED→GREEN: new `src/lib/digest-agreement.test.ts` — `crypto.subtle.digest('SHA-256', …)` and `node:crypto.createHash('sha256')` produce the same hex digest for a fixed vector (the single cross-runtime assumption D10 rests on). *Filename is inferred — design.md does not pin one.*
+- [x] 3.5 `src/features/miembros/repo.ts` — add `setMemberTokenHash(id, tokenHash)`; change `fetchMembers`'s `select('*')` to the explicit column list per D15 (drops `token_hash` from client state).
+- [x] 3.6 `src/features/miembros/token.ts` (NEW) — `getRandomValues(32)` → `toBase64Url` → clipboard; `subtle.digest` SHA-256 hex → `setMemberTokenHash`; plaintext never leaves this module (D10).
+- [x] 3.7 `src/features/miembros/index.ts` + `index.html` — "Enlace" column (`Sin enlace` / `Generado el <fecha>`), Generar/Regenerar button; `window.confirm` on regenerate only, no confirm on first generation; one-time reveal block (readonly input + Copiar + red "no se volverá a mostrar" text); clipboard-denied fallback keeps the input visible/selected; `app.refresh()` clears the reveal (D16).
+- [x] 3.8 Verify: `npx vitest run src/lib/member-token.test.ts src/lib/digest-agreement.test.ts` — entropy, shape, import-graph, and cross-runtime-digest scenarios all pass.
 
 ## Phase 4: Member Portal (`api/member-view.ts` + `mi-cuenta/` entry) — PR4
 

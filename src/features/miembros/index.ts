@@ -12,6 +12,7 @@ import {
   reactivateMember,
   retireMember,
 } from './repo';
+import { copyToClipboard, generateMemberToken } from './token';
 
 /** Mirrors the original `fetchAndRenderMembers` + `handleAddMember`; extended in Phase 4 with retire/reactivate/delete (spec member-lifecycle), and in `portal-miembros` Part 1 with the per-member payment history panel (spec member-payment-history). */
 export function initMiembros(app: App): void {
@@ -27,9 +28,42 @@ export function initMiembros(app: App): void {
   const historyTotalPagado = document.getElementById('member-history-total-pagado')!;
   const historyCargosBody = document.getElementById('member-history-cargos-body')!;
   const historyPagosBody = document.getElementById('member-history-pagos-body')!;
+  const tokenRevealPanel = document.getElementById('member-token-reveal')!;
+  const tokenRevealMessage = document.getElementById('member-token-reveal-message')!;
+  const tokenRevealInput = document.getElementById('member-token-reveal-input') as HTMLInputElement;
+  const tokenRevealCopyButton = document.getElementById('member-token-reveal-copy')!;
 
   /** `id` of the member whose history panel is currently open, or `null` when closed. */
   let openHistoryMemberId: string | null = null;
+
+  const COPY_NOW_MESSAGE = 'Cópialo ahora: no se volverá a mostrar.';
+  const COPY_MANUALLY_MESSAGE = 'No se pudo copiar automáticamente; selecciónalo y cópialo manualmente.';
+
+  /** Shows the one-time reveal (design.md D16). `clipboardSucceeded` decides which message is shown and whether the input is forced into a selected state as a manual-copy fallback. */
+  function showTokenReveal(url: string, clipboardSucceeded: boolean): void {
+    tokenRevealInput.value = url;
+    setText(tokenRevealMessage, clipboardSucceeded ? COPY_NOW_MESSAGE : COPY_MANUALLY_MESSAGE);
+    tokenRevealPanel.classList.remove('view-hidden');
+    if (!clipboardSucceeded) {
+      tokenRevealInput.focus();
+      tokenRevealInput.select();
+    }
+  }
+
+  /** Hides the reveal and drops the plaintext from the DOM. Called on every render (design.md D16: "app.refresh() clears the reveal on the next render"). */
+  function hideTokenReveal(): void {
+    tokenRevealPanel.classList.add('view-hidden');
+    tokenRevealInput.value = '';
+  }
+
+  tokenRevealCopyButton.addEventListener('click', async () => {
+    const succeeded = await copyToClipboard(tokenRevealInput.value);
+    setText(tokenRevealMessage, succeeded ? COPY_NOW_MESSAGE : COPY_MANUALLY_MESSAGE);
+    if (!succeeded) {
+      tokenRevealInput.focus();
+      tokenRevealInput.select();
+    }
+  });
 
   function renderCargoHistoryRow(cargo: CargoHistorial): string {
     const fecha = cargo.registro_apoyos?.fecha ?? cargo.created_at;
@@ -106,6 +140,10 @@ export function initMiembros(app: App): void {
     const toggleAction = member.activo ? 'retire' : 'reactivate';
     const estadoLabel = member.activo ? 'Activo' : 'Retirado';
     const estadoClass = member.activo ? 'text-green-600' : 'text-gray-500';
+    const enlaceLabel = member.token_generado_en
+      ? `Generado el ${new Date(member.token_generado_en).toLocaleDateString()}`
+      : 'Sin enlace';
+    const tokenButtonLabel = member.token_generado_en ? 'Regenerar enlace' : 'Generar enlace';
 
     return `
         <tr>
@@ -113,8 +151,10 @@ export function initMiembros(app: App): void {
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(member.status)}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm ${estadoClass}">${estadoLabel}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(member.created_at).toLocaleDateString()}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${enlaceLabel}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-right space-x-3">
             <button data-member-id="${escapeHtml(member.id)}" class="member-history-button text-blue-600 hover:text-blue-800">Ver historial</button>
+            <button data-member-id="${escapeHtml(member.id)}" class="member-token-button text-purple-600 hover:text-purple-800">${tokenButtonLabel}</button>
             <button data-member-id="${escapeHtml(member.id)}" data-action="${toggleAction}" class="member-toggle-button text-indigo-600 hover:text-indigo-800">${toggleLabel}</button>
             <button data-member-id="${escapeHtml(member.id)}" class="member-delete-button text-red-600 hover:text-red-800">Eliminar</button>
           </td>
@@ -123,6 +163,7 @@ export function initMiembros(app: App): void {
 
   function render(): void {
     membersTableBody.innerHTML = app.state.members.map(renderRow).join('');
+    hideTokenReveal();
   }
 
   addMemberForm.addEventListener('submit', async (e) => {
@@ -160,6 +201,29 @@ export function initMiembros(app: App): void {
     if (target.classList.contains('member-history-button')) {
       const member = app.state.members.find((m) => m.id === memberId);
       await toggleHistoryPanel(memberId, member?.nickname ?? '');
+      return;
+    }
+
+    if (target.classList.contains('member-token-button')) {
+      const member = app.state.members.find((m) => m.id === memberId);
+      const isRegenerating = Boolean(member?.token_generado_en);
+
+      if (
+        isRegenerating &&
+        !window.confirm('Se generará un enlace nuevo y el anterior dejará de funcionar. ¿Continuar?')
+      ) {
+        return;
+      }
+
+      try {
+        const { url, clipboardSucceeded } = await generateMemberToken(memberId);
+        await app.refresh();
+        showTokenReveal(url, clipboardSucceeded);
+      } catch (error) {
+        console.error('Error al generar el enlace del miembro:', error);
+        memberFeedback.textContent = 'Error al generar el enlace.';
+        memberFeedback.className = 'mt-3 text-sm text-red-600';
+      }
       return;
     }
 
