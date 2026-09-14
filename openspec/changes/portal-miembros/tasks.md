@@ -45,11 +45,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Access Token Schema (D9) — live-DB, sign-off gated — PR2
 
-- [x] 2.1 Draft `supabase/sql/portal_miembros_token.sql` — additive `token_hash text check (token_hash is null or token_hash ~ '^[0-9a-f]{64}$')` + `token_generado_en timestamptz` on `miembros`, plus partial unique index `miembros_token_hash_key on miembros(token_hash) where token_hash is not null`. **DRAFT ONLY — not applied, awaiting sign-off.**
-- [x] 2.2 Draft `supabase/sql/portal_miembros_token_down.sql` — verbatim `drop column token_hash` (drops the partial index with it) + `drop column token_generado_en`. Written before any live execution.
-- [ ] 2.3 **[LIVE-DB, SIGN-OFF GATED — NOT auto-applied by `sdd-apply`]** Obtain explicit project-owner sign-off immediately before execution (same gate as Phase 0/2/3/4 of `evolucion-plataforma-arca`). Execute `portal_miembros_token.sql` live via the Supabase Management API.
-- [ ] 2.4 **[LIVE-DB, requires 2.3 done]** Read-back verification: `information_schema.columns` shows `token_hash text` and `token_generado_en timestamptz`, both `is_nullable=YES`; all existing `miembros` rows have both NULL.
-- [ ] 2.5 **[MANUAL, SQL editor, requires 2.3 done — mirrors `evolucion-plataforma-arca` task 2.6/4.5 pattern]** Integration test: `update miembros set token_hash = 'no-es-un-hash'` refused (`23514`); inserting the same digest on two members refused by `miembros_token_hash_key` (`23505`); multiple `NULL` values accepted; `anon` still denied on `miembros` (`information_schema.role_table_grants`).
+- [x] 2.1 Draft `supabase/sql/portal_miembros_token.sql` — additive `token_hash text check (token_hash is null or token_hash ~ '^[0-9a-f]{64}$')` + `token_generado_en timestamptz` on `miembros`, plus partial unique index `miembros_token_hash_key on miembros(token_hash) where token_hash is not null`. **APPLIED live 2026-09-14.**
+- [x] 2.2 Draft `supabase/sql/portal_miembros_token_down.sql` — verbatim `drop column token_hash` (drops the partial index with it) + `drop column token_generado_en`. Written before live execution.
+- [x] 2.3 **[LIVE-DB, SIGN-OFF GATED]** Explicit project-owner sign-off obtained in-session; `portal_miembros_token.sql` executed live via the Supabase Management API 2026-09-14.
+- [x] 2.4 Read-back verification: `information_schema.columns` confirms `token_hash text` and `token_generado_en timestamptz`, both `is_nullable=YES`; all 10 existing `miembros` rows have `token_hash` NULL (`count=10, with_token=0`).
+- [x] 2.5 Integration test, all confirmed live: `update miembros set token_hash = 'no-es-un-hash'` refused (`23514`, no rows modified); setting the same digest on two members refused by `miembros_token_hash_key` (`23505`, no rows modified); multiple `NULL` values accepted (all 10 rows); `anon` still has zero grants on `miembros` (`information_schema.role_table_grants` returns no rows).
 
 ## Phase 3: Token Issuance (`member-token.ts` + admin UI) — PR3
 

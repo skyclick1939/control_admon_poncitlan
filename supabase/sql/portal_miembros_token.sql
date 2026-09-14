@@ -2,9 +2,13 @@
 -- portal-miembros — Member access token: hashed-at-rest storage on miembros
 -- portal-miembros, design.md D9 + D10
 --
--- STATUS: NOT APPLIED. Apply live only after explicit project-owner sign-off
--- obtained immediately beforehand (the Phase 0/2/3/4 gate), with read-back
--- verification.
+-- STATUS: APPLIED live 2026-09-14, with explicit project-owner sign-off
+-- (the Phase 0/2/3/4 gate).
+-- Read-back verification: information_schema.columns confirms token_hash
+-- text is_nullable=YES and token_generado_en timestamptz is_nullable=YES;
+-- all 10 existing miembros rows have token_hash NULL (count=10, with_token=0);
+-- `update miembros set token_hash = 'no-es-un-hash'` correctly rejected with
+-- 23514 (check constraint violation), no rows modified.
 --
 -- Additive and app-owned (config.yaml rules.proposal). No RLS or GRANT change
 -- is needed: phase2_rls.sql's admins_all_miembros policy already covers
