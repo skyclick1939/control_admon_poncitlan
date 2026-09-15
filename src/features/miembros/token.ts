@@ -1,5 +1,11 @@
 import { TOKEN_BYTES, toBase64Url } from '../../lib/member-token';
+import { copyToClipboard } from '../../lib/clipboard';
 import { setMemberTokenHash } from './repo';
+
+// Re-exported for `features/miembros/index.ts` (line 15), which still imports
+// the copy helper from this module. The shared implementation now lives in
+// `lib/clipboard.ts` (dependency-free — design.md D1 amendment).
+export { copyToClipboard };
 
 export interface GeneratedMemberToken {
   /** Full member-facing URL, ready to display in the one-time reveal (D16). */
@@ -10,20 +16,6 @@ export interface GeneratedMemberToken {
 /** Builds the member-facing link for a plaintext token (design.md D16), matching the `mi-cuenta` Vite entry. */
 function buildMemberLink(plaintextToken: string): string {
   return `${window.location.origin}/mi-cuenta/?token=${plaintextToken}`;
-}
-
-/**
- * Attempts to copy `text` to the clipboard. `navigator.clipboard` can be
- * denied or unavailable outside a secure context (design.md D16); callers
- * fall back to a visible, selected input on failure.
- */
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

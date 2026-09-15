@@ -1,9 +1,9 @@
 // ============================================================================
 // src/public-view.ts — public, unauthenticated entry (design.md D1; tasks.md
-// task 3.4). Imports lib/escape + lib/types ONLY, and MUST NEVER import
-// lib/supabase.ts: that keeps supabase-js and the anon key out of this
-// bundle entirely (D1's rationale — this page has no session and needs no
-// client-side DB access, only a fetch() call to api/debt-view).
+// task 3.4). Imports lib/escape + lib/types + lib/clipboard ONLY, and MUST
+// NEVER import lib/supabase.ts: that keeps supabase-js and the anon key out
+// of this bundle entirely (D1's rationale — this page has no session and
+// needs no client-side DB access, only a fetch() call to api/debt-view).
 //
 // Not unit-tested: this is a DOM-wiring entry script (same category as
 // src/main.ts and features/admin/index.ts, neither of which has a test
@@ -14,13 +14,15 @@
 // exhaustively unit-tested in Phase 1 (spec safe-rendering) and reused
 // as-is below, never reimplemented.
 // ============================================================================
+import { copyToClipboard } from './lib/clipboard';
 import { escapeHtml, setText } from './lib/escape';
 import type { DebtViewResponse } from './lib/types';
 
 /**
- * Money.ts's `formatMXN` is deliberately NOT imported here — tasks.md 3.4
- * restricts this entry to `lib/escape`/`lib/types` only, so this tiny
- * formatter is duplicated inline rather than adding a third `lib/*` import.
+ * Money.ts's `formatMXN` is deliberately NOT imported here — this entry keeps
+ * a tiny inline formatter. The design (D1 amendment) permits `lib/clipboard.ts`
+ * below because it has zero imports; `lib/money.ts` stays out to keep the
+ * public bundle minimal.
  */
 function formatCentsMXN(cents: number): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
@@ -41,15 +43,48 @@ function renderBanco(banco: DebtViewResponse['banco']): string {
   return `
     <dl class="grid grid-cols-1 gap-2 text-sm">
       <div><dt class="font-medium text-gray-700">Banco</dt><dd>${escapeHtml(banco.banco)}</dd></div>
-      <div><dt class="font-medium text-gray-700">CLABE</dt><dd class="font-mono">${escapeHtml(banco.clabe)}</dd></div>
+      <div>
+        <dt class="font-medium text-gray-700">CLABE</dt>
+        <dd class="font-mono flex items-center gap-2">
+          <span>${escapeHtml(banco.clabe)}</span>
+          <button type="button" class="clabe-copy-button text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50" data-clabe="${escapeHtml(banco.clabe)}" aria-label="Copiar CLABE al portapapeles">Copiar</button>
+          <span class="clabe-copy-feedback text-xs" role="status" aria-live="polite"></span>
+        </dd>
+      </div>
       <div><dt class="font-medium text-gray-700">Titular</dt><dd>${escapeHtml(banco.titular)}</dd></div>
     </dl>`;
 }
 
+const CLABE_COPY_SUCCESS = 'Copiado al portapapeles.';
+const CLABE_COPY_FAILURE = 'No se pudo copiar; copia la CLABE manualmente.';
+
+/** Delegated CLABE copy handler for `#vista-banco` (spec public-clabe-copy). */
+function handleClabeCopy(event: Event): void {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+
+  const button = target.closest('.clabe-copy-button');
+  if (!button) return;
+
+  const clabe = button.getAttribute('data-clabe');
+  if (!clabe) return;
+
+  const feedback = button.parentElement?.querySelector('.clabe-copy-feedback');
+  if (!feedback) return;
+
+  void copyToClipboard(clabe).then((succeeded) => {
+    setText(feedback, succeeded ? CLABE_COPY_SUCCESS : CLABE_COPY_FAILURE);
+    feedback.classList.toggle('text-green-600', succeeded);
+    feedback.classList.toggle('text-red-600', !succeeded);
+  });
+}
+
 async function loadDebtView(): Promise<void> {
   const totalEl = document.getElementById('vista-total-pendiente')!;
+  const cajaEl = document.getElementById('vista-caja')!;
   const deudoresBody = document.getElementById('vista-deudores-body')!;
   const bancoContainer = document.getElementById('vista-banco')!;
+  bancoContainer.addEventListener('click', handleClabeCopy);
   const errorEl = document.getElementById('vista-error')!;
   const generatedAtEl = document.getElementById('vista-generated-at')!;
 
@@ -59,6 +94,9 @@ async function loadDebtView(): Promise<void> {
     const data = (await response.json()) as DebtViewResponse;
 
     setText(totalEl, formatCentsMXN(data.totalPendienteCents));
+    setText(cajaEl, formatCentsMXN(data.cajaCents));
+    // Negative caja renders red and unblocked — never hidden, clamped, or gated (spec caja: Negative Caja Is Allowed).
+    cajaEl.className = `text-3xl font-bold mt-1 ${data.cajaCents < 0 ? 'text-red-600' : 'text-green-600'}`;
     deudoresBody.innerHTML = data.deudores.map(renderDeudorRow).join('');
     bancoContainer.innerHTML = renderBanco(data.banco);
     setText(generatedAtEl, new Date(data.generatedAt).toLocaleString('es-MX'));

@@ -6,6 +6,7 @@ import { initAdmin } from './features/admin';
 import { initBankConfig } from './features/admin/bank-config';
 import { checkCurrentAdmin } from './features/admin/repo';
 import { initApoyos } from './features/apoyos';
+import { initCaja } from './features/caja';
 import { initializeDashboard } from './features/dashboard';
 import { initMiembros } from './features/miembros';
 import { initPagos } from './features/pagos';
@@ -44,6 +45,7 @@ initApoyos({ app, getCurrentUser });
 const pagosApi = initPagos({ app, getCurrentUser });
 const adminApi = initAdmin({ getCurrentUser });
 const bankConfigApi = initBankConfig({ getCurrentUser });
+const cajaApi = initCaja({ getCurrentUser });
 
 const setActiveView = (viewId: string): void => {
   document.querySelectorAll('.page-content').forEach((view) => view.classList.add('view-hidden'));
@@ -54,6 +56,7 @@ const setActiveView = (viewId: string): void => {
   });
 
   if (viewId === 'pagos-content') pagosApi.renderPagosForm();
+  if (viewId === 'caja-content') void cajaApi.refresh();
   if (viewId === 'admin-content') {
     void adminApi.refresh();
     void bankConfigApi.refresh();

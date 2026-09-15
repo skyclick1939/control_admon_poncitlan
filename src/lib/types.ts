@@ -1,7 +1,7 @@
 export interface Miembro {
   id: string;
   nickname: string;
-  status: 'fullparch' | 'prospecto';
+  status: 'fullparch' | 'prospecto' | 'interno';
   created_at: string;
   /** Retirement flag (design.md Member lifecycle DDL; spec member-lifecycle). `false` excludes the member from apoyo candidates, the pago selector, and the public debt view, without deleting their history. */
   activo: boolean;
@@ -45,6 +45,26 @@ export interface RegistroPago {
   created_at: string;
 }
 
+/**
+ * Row of `public.registro_egresos` (design.md caja). `capturado_por` is
+ * `string | null` because the FK is `references auth.users(id) on delete set
+ * null`; `nombre_capturador` is deliberately non-null — it is the only
+ * surviving attribution when the capturing account is deleted.
+ */
+export interface RegistroEgreso {
+  id: string;
+  monto: number;
+  fecha: string;
+  motivo: string;
+  capturado_por: string | null;
+  nombre_capturador: string;
+  /** `miembros.id` the disbursement is attributed to, or `null` when the expense has no beneficiary. */
+  beneficiario_id: string | null;
+  /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion (mirrors `nombre_capturador`). */
+  nombre_beneficiario: string | null;
+  created_at: string;
+}
+
 /** `cargos` joined with its parent `registro_apoyos`, for the pagos debt breakdown view. */
 export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
   registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'>;
@@ -52,7 +72,7 @@ export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
 
 /** `cargos` joined with its `miembros` nickname, for the dashboard debtor ranking. */
 export interface CargoConMiembro extends Pick<Cargo, 'miembro_id' | 'monto_pendiente'> {
-  miembros: Pick<Miembro, 'nickname'> | null;
+  miembros: Pick<Miembro, 'nickname' | 'status'> | null;
 }
 
 /** `cargos` + its apoyo, for the ADMIN per-member history panel (design.md D14,
@@ -99,6 +119,14 @@ export interface ConfiguracionBancaria {
   updated_at: string;
 }
 
+/** Row of `public.configuracion_caja` (design.md caja). Singleton, always `id: 1`; holds the stored opening amount. */
+export interface ConfiguracionCaja {
+  id: number;
+  monto_apertura: number;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 /**
  * Response contract of the public, unauthenticated `api/debt-view` function
  * (design.md `api/debt-view.ts` interface; specs public-debt-view,
@@ -111,6 +139,8 @@ export interface DebtViewResponse {
   totalPendienteCents: number;
   deudores: { nickname: string; pendienteCents: number }[];
   banco: { banco: string; clabe: string; titular: string } | null;
+  /** Aggregate cash-on-hand (integer cents), never per-movement detail. May be negative. */
+  cajaCents: number;
 }
 
 /**

@@ -89,6 +89,7 @@
                         <a href="#miembros" data-view="miembros-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Miembros</a>
                         <a href="#solicitud" data-view="solicitud-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Solicitud de Apoyos</a>
                         <a href="#pagos" data-view="pagos-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Registro de Pagos</a>
+                        <a href="#caja" data-view="caja-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Arca</a>
                         <a href="#administracion" data-view="admin-content" id="nav-admin-link" class="nav-link view-hidden flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Administración</a>
                     </nav>
                     <div class="p-4 border-t">
@@ -112,13 +113,13 @@
                     <main class="flex-1 p-4 sm:p-8 overflow-y-auto">
                         <div id="main-dashboard-content" class="page-content">
                             <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard Financiero</h1>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <h3 class="text-sm font-medium text-gray-500">Deuda Total Pendiente</h3>
                                     <p id="kpi-deuda-total" class="text-3xl font-bold text-red-600 mt-1">$0.00</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
-                                    <h3 class="text-sm font-medium text-gray-500">Apoyos Otorgados (Total)</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Apoyos entregados (recuperables)</h3>
                                     <p id="kpi-apoyos-total" class="text-3xl font-bold text-blue-600 mt-1">$0.00</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
@@ -128,6 +129,10 @@
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <h3 class="text-sm font-medium text-gray-500">Miembros con Deuda</h3>
                                     <p id="kpi-miembros-deuda" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md">
+                                    <h3 class="text-sm font-medium text-gray-500">Arca (disponible)</h3>
+                                    <p id="kpi-caja" class="text-3xl font-bold text-green-600 mt-1">$0.00</p>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -158,6 +163,7 @@
                                         <select id="status" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                             <option value="fullparch">Fullparch</option>
                                             <option value="prospecto">Prospecto</option>
+                                            <option value="interno">Interno</option>
                                         </select>
                                     </div>
                                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition h-fit">Agregar Miembro</button>
@@ -263,12 +269,23 @@
                                             <option value="INDIVIDUAL">Individual</option>
                                             <option value="FULLPARCH">Fullparch</option>
                                             <option value="TODOS">Todos</option>
+                                            <option value="SIN_CARGOS">Sin cargos — absorbido por el Arca (no recuperable)</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div id="individual-members-list" class="mt-6 view-hidden">
                                     <h3 class="text-lg font-medium text-gray-800 mb-2">Seleccionar Miembros</h3>
                                     <div id="members-checkbox-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-48 overflow-y-auto p-4 border rounded-md"></div>
+                                </div>
+                                <div id="beneficiario-list" class="mt-6 view-hidden">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label for="apoyo-beneficiario" class="block text-sm font-medium text-gray-700">Beneficiario (opcional)</label>
+                                            <select id="apoyo-beneficiario" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                <option value="">-- Sin beneficiario --</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div id="division-info" class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg view-hidden"></div>
                                 <div id="apoyo-feedback" class="mt-4 text-sm"></div>
@@ -329,6 +346,80 @@
                                             <tbody id="deuda-table-body" class="bg-white divide-y divide-gray-200"></tbody>
                                         </table>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="caja-content" class="page-content view-hidden">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Arca</h1>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                                    <h2 class="text-xl font-semibold mb-4">Registrar Egreso</h2>
+                                    <form id="egreso-form" method="post">
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="egreso-monto" class="block text-sm font-medium text-gray-700">Monto ($)</label>
+                                                <input type="number" id="egreso-monto" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label for="egreso-fecha" class="block text-sm font-medium text-gray-700">Fecha</label>
+                                                <input type="date" id="egreso-fecha" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label for="egreso-motivo" class="block text-sm font-medium text-gray-700">Motivo</label>
+                                                <input type="text" id="egreso-motivo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label for="egreso-beneficiario" class="block text-sm font-medium text-gray-700">Beneficiario</label>
+                                                <select id="egreso-beneficiario" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">-- Sin beneficiario --</option>
+                                                </select>
+                                            </div>
+                                            <div id="egreso-feedback" class="mt-2 text-sm"></div>
+                                            <button type="submit" id="save-egreso-button" disabled class="w-full mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition">Guardar Egreso</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                                    <h2 class="text-xl font-semibold mb-4">Monto de Apertura</h2>
+                                    <form id="apertura-form" method="post">
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="apertura-monto" class="block text-sm font-medium text-gray-700">Monto de Apertura ($)</label>
+                                                <input type="number" id="apertura-monto" required step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+                                            <div id="apertura-feedback" class="mt-2 text-sm"></div>
+                                            <button type="submit" id="save-apertura-button" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Guardar Apertura</button>
+                                        </div>
+                                    </form>
+                                    <h2 class="text-xl font-semibold mb-4 mt-8">Desglose de Caja</h2>
+                                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Apertura</dt>
+                                            <dd id="caja-opening" class="text-xl font-bold text-gray-800">$0.00</dd>
+                                        </div>
+                                        <div class="p-4 bg-green-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Pagos Recibidos</dt>
+                                            <dd id="caja-pagos-total" class="text-xl font-bold text-green-600">$0.00</dd>
+                                        </div>
+                                        <h3 class="md:col-span-2 text-base font-semibold text-gray-700 mt-2">Salidas del arca</h3>
+                                        <div class="p-4 bg-blue-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Apoyos entregados (recuperables)</dt>
+                                            <dd id="caja-apoyos-total" class="text-xl font-bold text-blue-600">$0.00</dd>
+                                        </div>
+                                        <div class="p-4 bg-red-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Egresos (no recuperables)</dt>
+                                            <dd id="caja-egresos-total" class="text-xl font-bold text-red-600">$0.00</dd>
+                                        </div>
+                                        <div class="p-4 bg-blue-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Arca (disponible)</dt>
+                                            <dd id="caja-total" class="text-xl font-bold text-gray-900">$0.00</dd>
+                                        </div>
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Por Cobrar</dt>
+                                            <dd id="caja-por-cobrar" class="text-xl font-bold text-gray-800">$0.00</dd>
+                                        </div>
+                                    </dl>
                                 </div>
                             </div>
                         </div>
