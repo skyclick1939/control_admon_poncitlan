@@ -84,18 +84,20 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     // the public debt view (spec caja: Negative Caja Is Allowed / aggregate only).
     let cajaCents = 0;
     try {
-      const [aperturaRes, pagosRes, egresosRes] = await Promise.all([
+      const [aperturaRes, pagosRes, apoyosRes, egresosRes] = await Promise.all([
         db.from('configuracion_caja').select('monto_apertura').eq('id', 1).maybeSingle(),
         db.from('registro_pagos').select('monto_pagado'),
+        db.from('registro_apoyos').select('monto_total'),
         db.from('registro_egresos').select('monto'),
       ]);
-      const cajaError = aperturaRes.error ?? pagosRes.error ?? egresosRes.error;
+      const cajaError = aperturaRes.error ?? pagosRes.error ?? apoyosRes.error ?? egresosRes.error;
       if (cajaError) {
         console.error('debt-view: caja query failed', cajaError);
       } else {
         cajaCents = computeCaja({
           openingCents: toCents(aperturaRes.data?.monto_apertura ?? 0),
           pagosCents: (pagosRes.data ?? []).map((row) => toCents(row.monto_pagado)),
+          apoyosCents: (apoyosRes.data ?? []).map((row) => toCents(row.monto_total)),
           egresosCents: (egresosRes.data ?? []).map((row) => toCents(row.monto)),
         }).cajaCents;
       }

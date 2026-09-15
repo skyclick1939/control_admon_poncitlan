@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | Slice 1 ~130, Slice 2 ~80, Slice 3 ~190, Slice 4 ~85; total ~485 |
+| Estimated changed lines | Slice 1 ~130, Slice 2 ~80, Slice 3 ~190, Slice 4 ~85, Slice 5 ~140; total ~625 |
 | 400-line budget risk | Medium |
 | Chained PRs recommended | Yes |
-| Suggested split | PR 1 → PR 2 → PR 3 → PR 4 (stacked-to-main) |
+| Suggested split | PR 1 → PR 2 → PR 3 → PR 4 → PR 5 (stacked-to-main) |
 | Delivery strategy | auto-chain |
 | Chain strategy | stacked-to-main |
 
@@ -16,7 +16,7 @@ Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: stacked-to-main
 400-line budget risk: Medium
-Estimated changed lines: Slice 1 ~130, Slice 2 ~80, Slice 3 ~190, Slice 4 ~85; total ~485
+Estimated changed lines: Slice 1 ~130, Slice 2 ~80, Slice 3 ~190, Slice 4 ~85, Slice 5 ~140; total ~625
 ```
 
 Decision needed before apply: No
@@ -29,6 +29,7 @@ Decision needed before apply: No
 | 2 | CLABE copy extraction + public button | PR 2 | `vitest run` (no regression) | manual public-view copy (success + fallback) | revert `src/lib/clipboard.ts`, `src/features/miembros/token.ts`, `src/public-view.ts`, `vista/index.html` |
 | 3 | Schema + caja repo + admin UI | PR 3 | `vitest run` + `tsc --noEmit` | manual egreso + apertura writes | run `phaseN_egresos_down.sql`; delete `src/features/caja/{index,repo}.ts` |
 | 4 | Dashboard KPI + public `cajaCents` + debt-view | PR 4 | `vitest run` + `tsc --noEmit` | manual negative public caja red unblocked | revert `api/debt-view.ts`, `src/lib/types.ts` `cajaCents`, `src/features/dashboard/index.ts`, `src/public-view.ts`, `vista/index.html`, `index.html`, `src/main.ts` |
+| 5 | Apoyos term + Por cobrar + Arca labels | PR 5 | `vitest run src/lib/caja.test.ts` + `tsc --noEmit` | manual Arca breakdown + Por cobrar display | revert apoyos/por-cobrar additions + Arca labels |
 
 ## PR 1 — Pure caja core + types (foundation)
 
@@ -71,6 +72,21 @@ Decision needed before apply: No
 - [x] 4.4 Modify `src/features/dashboard/index.ts`: add 5th "Caja" KPI via `fetchCaja()` → `money.formatMXN` (NO raw arithmetic; leave existing 3 cards' float sums unchanged, out of scope).
 - [x] 4.5 Modify `index.html` (KPI grid card, sidebar nav link, `#caja-content`) + `src/main.ts` (wire `initCaja` + navigation refresh).
 - [x] 4.6 **Verify PR 4**: `vitest run` + `tsc --noEmit` green; manual negative public caja red unblocked.
+
+## PR 5 — Apoyos term + Por cobrar + Arca labels
+
+**Start**: `computeCaja` shows apertura + pagos − egresos (no apoyos term); no "Por cobrar" figure; module labeled "Caja". **Finish**: apoyos SUBTRACT, "Por cobrar" displayed, module/breakdown/KPI relabeled "Arca" / "Arca (disponible)" (identifiers unchanged).
+
+**Review Workload Forecast (Slice 5)**: ~140 changed lines (mostly rename + a few additions), under the 400-line budget; PR 5 stacks onto PR 4.
+
+- [ ] 5.1 (RED) Extend `src/lib/caja.test.ts`: assert `apoyosCents: [10000]` → `apoyosTotalCents === 10000` and `cajaCents === opening + Σpagos − 10000 − Σegresos` (apoyo term SUBTRACTS); fully-repaid apoyo nets to zero; unrepaid apoyo stays negative. `vitest run` FAILS.
+- [ ] 5.2 (GREEN) Modify `src/lib/caja.ts`: add `apoyosCents` to `CajaInput` and `apoyosTotalCents` to `CajaBreakdown`; compute `cajaCents = opening + pagosTotal − apoyosTotal − egresosTotal`. Identifiers NOT renamed (`computeCaja`, `CajaInput`, `CajaBreakdown` stay). `vitest run` passes.
+- [ ] 5.3 Modify `src/features/caja/repo.ts` `fetchCaja`: also fetch `registro_apoyos.monto_total` and pass `apoyosCents` to `computeCaja`.
+- [ ] 5.4 Add the "Por cobrar" figure to `src/features/caja/index.ts`: read `totalPendienteCents` from `aggregateDebtByMember` (`src/lib/debt-view.ts`); render alongside "Arca (disponible)" as contextual, NOT added into the balance.
+- [ ] 5.5 Change user-facing labels ONLY: nav/module label → "Arca"; balance card → "Arca (disponible)"; dashboard KPI → "Arca (disponible)"; public caja card → "Arca (disponible)". Do NOT rename identifiers or DOM ids — `computeCaja`, `CajaInput`, `CajaBreakdown`, `cajaCents`, `src/lib/caja.ts`, `src/lib/caja.test.ts`, `src/features/caja/repo.ts`, `src/features/caja/index.ts`, `fetchCaja`, `initCaja`, `#caja-content`, `data-view="caja-content"`, `configuracion_caja`, `ConfiguracionCaja` all stay as-is.
+- [ ] 5.6 Update `api/debt-view.ts` to fetch `registro_apoyos.monto_total` as a `−` term for the public aggregate `cajaCents`; the PUBLIC surface still exposes ONLY the net aggregate (no apoyos/egresos/por-cobrar breakdown, no operator identity).
+- [ ] 5.7 Render the six breakdown cards: `Apertura` · `Pagos recibidos` · `Apoyos entregados` · `Egresos` · `Arca (disponible)` · `Por cobrar`.
+- [ ] 5.8 **Verify PR 5**: `vitest run` + `tsc --noEmit` green; manual: recording a sin-cargo apoyo as egreso decreases Arca; an unrepaid apoyo leaves Arca negative; "Por cobrar" unchanged by a sin-cargo disbursement.
 
 ## Final Verification (cross-slice, no new code)
 

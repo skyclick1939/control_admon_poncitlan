@@ -1,5 +1,6 @@
 import type { CajaBreakdown } from '../../lib/caja';
 import { computeCaja } from '../../lib/caja';
+import { aggregateDebtByMember, type CargoPendienteRow } from '../../lib/debt-view.js';
 import { toCents } from '../../lib/money';
 import { dbClient } from '../../lib/supabase';
 import type { ConfiguracionCaja } from '../../lib/types';
@@ -61,16 +62,33 @@ export async function fetchApertura(): Promise<ConfiguracionCaja | null> {
 
 /** Aggregates the derived caja over already-fetched rows; `toCents` at the boundary, `computeCaja` over cents. */
 export async function fetchCaja(): Promise<CajaBreakdown> {
-  const [aperturaRes, pagosRes, egresosRes] = await Promise.all([
+  const [aperturaRes, pagosRes, apoyosRes, egresosRes] = await Promise.all([
     dbClient.from('configuracion_caja').select('monto_apertura').eq('id', 1).maybeSingle(),
     dbClient.from('registro_pagos').select('monto_pagado'),
+    dbClient.from('registro_apoyos').select('monto_total'),
     dbClient.from('registro_egresos').select('monto'),
   ]);
-  const err = aperturaRes.error ?? pagosRes.error ?? egresosRes.error;
+  const err = aperturaRes.error ?? pagosRes.error ?? apoyosRes.error ?? egresosRes.error;
   if (err) throw err;
   return computeCaja({
     openingCents: toCents(aperturaRes.data?.monto_apertura ?? 0),
     pagosCents: (pagosRes.data ?? []).map((row) => toCents(row.monto_pagado)),
+    apoyosCents: (apoyosRes.data ?? []).map((row) => toCents(row.monto_total)),
     egresosCents: (egresosRes.data ?? []).map((row) => toCents(row.monto)),
   });
+}
+
+/**
+ * Outstanding receivable — Σ `cargos.monto_pendiente` — as whole cents, via the
+ * existing pure `aggregateDebtByMember` aggregator. CONTEXTUAL ONLY: this figure
+ * must never be summed into `cajaCents`; apoyos are already deducted from the
+ * arca at disbursement, and their repayment flows back through `registro_pagos`.
+ */
+export async function fetchPorCobrar(): Promise<number> {
+  const { data, error } = await dbClient
+    .from('cargos')
+    .select('monto_pendiente, miembros(nickname, activo)')
+    .eq('estado', 'pendiente');
+  if (error) throw error;
+  return aggregateDebtByMember((data ?? []) as unknown as CargoPendienteRow[]).totalPendienteCents;
 }

@@ -2,7 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import type { CajaBreakdown } from '../../lib/caja';
 import { setText } from '../../lib/escape';
 import { formatMXN } from '../../lib/money';
-import { fetchApertura, fetchCaja, saveApertura, saveEgreso } from './repo';
+import { fetchApertura, fetchCaja, fetchPorCobrar, saveApertura, saveEgreso } from './repo';
 
 export interface CajaDeps {
   getCurrentUser: () => User | null;
@@ -35,8 +35,10 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
 
   const cajaOpening = document.getElementById('caja-opening')!;
   const cajaPagosTotal = document.getElementById('caja-pagos-total')!;
+  const cajaApoyosTotal = document.getElementById('caja-apoyos-total')!;
   const cajaEgresosTotal = document.getElementById('caja-egresos-total')!;
   const cajaTotal = document.getElementById('caja-total')!;
+  const cajaPorCobrar = document.getElementById('caja-por-cobrar')!;
 
   function showEgresoError(message: string): void {
     egresoFeedback.textContent = message;
@@ -63,11 +65,13 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
     saveEgresoButton.disabled = !(monto > 0 && egresoFechaInput.value && egresoMotivoInput.value.trim());
   }
 
-  function renderBreakdown(breakdown: CajaBreakdown): void {
+  function renderBreakdown(breakdown: CajaBreakdown, porCobrarCents: number): void {
     setText(cajaOpening, formatMXN(breakdown.openingCents));
     setText(cajaPagosTotal, formatMXN(breakdown.pagosTotalCents));
+    setText(cajaApoyosTotal, formatMXN(breakdown.apoyosTotalCents));
     setText(cajaEgresosTotal, formatMXN(breakdown.egresosTotalCents));
     setText(cajaTotal, formatMXN(breakdown.cajaCents));
+    setText(cajaPorCobrar, formatMXN(porCobrarCents));
     // Negative caja renders red and unblocked — never hidden, clamped, or gated (spec: Negative Caja Is Allowed).
     cajaTotal.className = breakdown.cajaCents < 0 ? 'text-red-600' : 'text-gray-900';
   }
@@ -77,8 +81,12 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
     egresoFechaInput.valueAsDate = new Date();
     validateEgresoForm();
     try {
-      const [breakdown, apertura] = await Promise.all([fetchCaja(), fetchApertura()]);
-      renderBreakdown(breakdown);
+      const [breakdown, apertura, porCobrarCents] = await Promise.all([
+        fetchCaja(),
+        fetchApertura(),
+        fetchPorCobrar(),
+      ]);
+      renderBreakdown(breakdown, porCobrarCents);
       aperturaMontoInput.value = apertura ? String(apertura.monto_apertura) : '';
     } catch (error) {
       console.error('Error al cargar la caja:', error);
