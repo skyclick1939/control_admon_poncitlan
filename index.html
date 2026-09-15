@@ -50,7 +50,7 @@
                         <h1 class="text-3xl font-bold text-gray-800">Control de Gastos</h1>
                         <p class="text-gray-500">Poncitlán</p>
                     </div>
-                    <form id="login-form">
+                    <form id="login-form" method="post">
                         <div class="space-y-6">
                             <div>
                                 <label for="email" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
@@ -148,7 +148,7 @@
                             <h1 class="text-3xl font-bold text-gray-800 mb-6">Gestión de Miembros</h1>
                             <div class="bg-white p-6 rounded-lg shadow-md mb-8">
                                 <h2 class="text-xl font-semibold mb-4">Agregar Nuevo Miembro</h2>
-                                <form id="add-member-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <form id="add-member-form" method="post" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                                     <div>
                                         <label for="nickname" class="block text-sm font-medium text-gray-700">Nickname</label>
                                         <input type="text" id="nickname" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
@@ -238,7 +238,7 @@
 
                         <div id="solicitud-content" class="page-content view-hidden">
                             <h1 class="text-3xl font-bold text-gray-800 mb-6">Solicitud de Apoyos</h1>
-                            <form id="solicitud-form" class="bg-white p-8 rounded-lg shadow-md">
+                            <form id="solicitud-form" method="post" class="bg-white p-8 rounded-lg shadow-md">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700">Capturado por</label>
@@ -283,7 +283,7 @@
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
                                     <h2 class="text-xl font-semibold mb-4">Registrar un Pago</h2>
-                                    <form id="pago-form">
+                                    <form id="pago-form" method="post">
                                         <div class="space-y-4">
                                             <div>
                                                 <label for="pago-miembro-select" class="block text-sm font-medium text-gray-700">Miembro</label>
@@ -337,7 +337,7 @@
                             <h1 class="text-3xl font-bold text-gray-800 mb-6">Administración</h1>
                             <div class="bg-white p-6 rounded-lg shadow-md mb-8">
                                 <h2 class="text-xl font-semibold mb-4">Agregar Administrador</h2>
-                                <form id="add-admin-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <form id="add-admin-form" method="post" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                     <div>
                                         <label for="admin-user-id" class="block text-sm font-medium text-gray-700">ID de Usuario (Supabase)</label>
                                         <input type="text" id="admin-user-id" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
@@ -374,7 +374,7 @@
                             </div>
                             <div class="bg-white p-6 rounded-lg shadow-md mt-8">
                                 <h2 class="text-xl font-semibold mb-4">Configuración Bancaria</h2>
-                                <form id="bank-config-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <form id="bank-config-form" method="post" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                                     <div>
                                         <label for="bank-config-banco" class="block text-sm font-medium text-gray-700">Banco</label>
                                         <input type="text" id="bank-config-banco" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
@@ -410,7 +410,7 @@
                         <p class="text-xs text-gray-500 text-center">¿No puedes escanear el código? Ingresa esta clave manualmente:</p>
                         <p id="mfa-enroll-secret" class="text-sm font-mono bg-gray-100 px-3 py-1 rounded mt-1 select-all"></p>
                     </div>
-                    <form id="mfa-enroll-form">
+                    <form id="mfa-enroll-form" method="post">
                         <div>
                             <label for="mfa-enroll-code" class="block text-sm font-medium text-gray-700">Código de 6 dígitos</label>
                             <input type="text" id="mfa-enroll-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-center tracking-widest text-lg">
