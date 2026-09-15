@@ -34,6 +34,38 @@ describe('computeCaja', () => {
     expect(result.cajaCents).toBe(21700);
   });
 
+  it('nets a fully repaid apoyo to zero', () => {
+    // The apoyo leaves as a deduction; its repayment returns as a pago, so a
+    // fully repaid apoyo cancels itself out of the balance.
+    const input: CajaInput = {
+      openingCents: 0,
+      pagosCents: [10000],
+      apoyosCents: [10000],
+      egresosCents: [],
+    };
+
+    const result = computeCaja(input);
+
+    expect(result.apoyosTotalCents).toBe(10000);
+    expect(result.cajaCents).toBe(0);
+  });
+
+  it('leaves an unrepaid apoyo as a negative balance', () => {
+    // An unrepaid apoyo remains a deduction, so the arca goes negative by the
+    // full disbursed amount.
+    const input: CajaInput = {
+      openingCents: 0,
+      pagosCents: [],
+      apoyosCents: [10000],
+      egresosCents: [],
+    };
+
+    const result = computeCaja(input);
+
+    expect(result.apoyosTotalCents).toBe(10000);
+    expect(result.cajaCents).toBe(-10000);
+  });
+
   it('returns a negative balance unclamped', () => {
     const input: CajaInput = {
       openingCents: 0,
