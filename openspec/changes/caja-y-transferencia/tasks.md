@@ -74,6 +74,6 @@ Decision needed before apply: No
 
 ## Final Verification (cross-slice, no new code)
 
-- [x] V.1 Confirm full-`monto_pagado` invariant at `src/features/pagos/repo.ts:59-65` (read-only): `monto_pagado === input.montoPagadoPesos` regardless of `unappliedCents`. **CONFIRMED by inspection; corroborated by 106 real pago rows (derived sum 58983.52).** NO unit test — no DI seam, out of 400-line budget.
+- [x] V.1 Confirm full-`monto_pagado` invariant at `src/features/pagos/repo.ts:59-65` (read-only): `monto_pagado === input.montoPagadoPesos` regardless of `unappliedCents`. **CONFIRMED by inspection; corroborated by 106 real pago rows (derived sum redacted).** NO unit test — no DI seam, out of 400-line budget.
 - [x] V.2 Confirm `saveApoyo` (`src/features/apoyos/repo.ts`, read-only) contributes no caja term. **CONFIRMED.**
 - [ ] V.3 Confirm negative `cajaCents` renders red + unblocked on admin AND public surfaces. **UNCHECKED — browser-only: code-inspected (red + unblocked on admin, dashboard, and public surfaces) but never exercised in a real browser.**

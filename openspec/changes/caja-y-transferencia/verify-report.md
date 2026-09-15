@@ -16,6 +16,8 @@ build_output_hash: sha256:E0B82ADB65BBD4EB2DA9F7BE4EEE1203FDCC2FD6F28D8062B33D4B
 
 ## Verification Report
 
+> **Redaction note.** This repository is public. Real financial figures from the production database — the total of recorded member payments and any cash totals derived from it — are shown as `[redacted]`. The row COUNT is kept, because it carries the evidentiary weight of "exercised over real production data" without disclosing amounts.
+
 **Change**: caja-y-transferencia
 **Mode**: Strict TDD (`vitest run`)
 **Revision**: RE-VERIFICATION — this report supersedes the prior one (which had `evidence_revision: sha256:d96c92…`, `verdict: fail`, `requirements: 9/12`, `scenarios: 7/14`). The migration has since been **applied to the production Supabase project** and read-only live evidence gathered. The prior report's framing is NOT discarded; the change in verdicts below is the direct consequence of that new evidence, and the two major re-classifications (Req 9 and Req 10) are called out explicitly.
@@ -30,7 +32,7 @@ build_output_hash: sha256:E0B82ADB65BBD4EB2DA9F7BE4EEE1203FDCC2FD6F28D8062B33D4B
 ## Requirement Verification
 
 ### 1. Derived Balance — VERIFIED
-`src/lib/caja.ts:25-31` — `computeCaja` is a pure function: `cajaCents = openingCents + ΣpagosCents − ΣegresosCents`, no DB access, no `toCents` call. Covered by `src/lib/caja.test.ts` (4 passing tests). **New**: the formula is now exercised over REAL production data (evidence E): apertura `0` + `sum(registro_pagos.monto_pagado)` over 106 rows = `58983.52` − `sum(registro_egresos.monto)` = `0` → derived caja `58983.52`.
+`src/lib/caja.ts:25-31` — `computeCaja` is a pure function: `cajaCents = openingCents + ΣpagosCents − ΣegresosCents`, no DB access, no `toCents` call. Covered by `src/lib/caja.test.ts` (4 passing tests). **New**: the formula is now exercised over REAL production data (evidence E): apertura `0` + `sum(registro_pagos.monto_pagado)` over 106 rows = `[redacted]` − `sum(registro_egresos.monto)` = `0` → derived caja `[redacted]`.
 
 ### 2. Opening Amount Singleton — VERIFIED
 `phase5_egresos.sql:64-69` — `configuracion_caja` `id smallint primary key default 1 check (id = 1)` (singleton). `src/features/caja/repo.ts:42-50` — `saveApertura` UPSERTs `id: 1` (update-not-insert guaranteed by the PK). **New**: live production evidence (C) proves the singleton exists — exactly **1 row, `id = 1`, `monto_apertura = 0`** (the seed). Admin-writability is live-proven by the `admins_all_configuracion_caja` policy using `is_admin()` (D: `authenticated` select = true, `anon` = false). The admin write itself (saveApertura UPSERT) remains code-verified, not yet live-exercised.
@@ -39,7 +41,7 @@ build_output_hash: sha256:E0B82ADB65BBD4EB2DA9F7BE4EEE1203FDCC2FD6F28D8062B33D4B
 Code-level VERIFIED: DDL `registro_egresos` (`phase5_egresos.sql:52-60`, live-confirmed by evidence C); `saveEgreso` inserts one row (`src/features/caja/repo.ts:23-32`); `fetchCaja` maps `registro_egresos.monto` → `egresosCents` → `computeCaja` subtracts. **Remaining gap**: **no egreso row has ever been inserted** (evidence E: `sum(registro_egresos.monto)` = `0`). The end-to-end "record an egreso → caja decreases" path is verified at schema + formula level only, not by an actual disbursement.
 
 ### 4. Abono Increases Caja — VERIFIED (code-level; V.1 untested)
-`src/features/pagos/repo.ts:59-65` — `aplicarPago` inserts exactly ONE `registro_pagos` row with `monto_pagado: input.montoPagadoPesos` (the FULL input amount, line 61), never the FIFO-decremented remainder; `unappliedCents` is returned separately at `:68` and does not overwrite the insert. **New**: the 106 real pago rows and the derived sum `58983.52` are consistent with the full-monto invariant (corroboration, evidence E). **Still no unit test** (no DI seam) — see V.1.
+`src/features/pagos/repo.ts:59-65` — `aplicarPago` inserts exactly ONE `registro_pagos` row with `monto_pagado: input.montoPagadoPesos` (the FULL input amount, line 61), never the FIFO-decremented remainder; `unappliedCents` is returned separately at `:68` and does not overwrite the insert. **New**: the 106 real pago rows and the derived sum `[redacted]` are consistent with the full-monto invariant (corroboration, evidence E). **Still no unit test** (no DI seam) — see V.1.
 
 ### 5. Support Records Do Not Move Caja — VERIFIED
 `src/features/apoyos/repo.ts:22-51` — `saveApoyo` writes only `registro_apoyos` + `cargos`; no caja term. `computeCaja` takes no apoyo input (`src/lib/caja.ts:21-23`). Covered by `src/lib/caja.test.ts:18-32` ("has no apoyos term").
@@ -127,7 +129,7 @@ postbuild: no "service_role" leakage found in dist/ (8 files checked).
 - **B. Defect was latent, not active.** Sibling is unconstrained `numeric`, so the original precision/scale equality assertion would have PASSED (`NULL IS NOT DISTINCT FROM NULL`); it would only have fired against a `numeric(p,s)` sibling, and it fired AFTER the DDL (misleading error on a successful apply). The fix moved the guard before DDL and to a `data_type`-only superset check.
 - **C. Migration applied to production.** `registro_egresos` and `configuracion_caja` both exist with `rowsecurity = true`; policies `admins_all_registro_egresos` / `admins_all_configuracion_caja`; anon grants = 0; seed exactly 1 row in `configuracion_caja` (`id = 1`, `monto_apertura = 0`); mirrored types `registro_egresos.monto = numeric` and `registro_pagos.monto_pagado = numeric`.
 - **D. RLS privilege proof.** `anon` select on both tables = **false**; `authenticated` select on `registro_egresos` = **true**.
-- **E. Derived caja over real data.** apertura `0`; `sum(registro_pagos.monto_pagado)` over 106 rows = `58983.52`; `sum(registro_egresos.monto)` = `0`; derived caja = **`58983.52`**.
+- **E. Derived caja over real data.** apertura `0`; `sum(registro_pagos.monto_pagado)` over 106 rows = `[redacted]`; `sum(registro_egresos.monto)` = `0`; derived caja = **`[redacted]`**.
 - **F. Migration drill (previously performed, still valid).** POSITIVE sibling `numeric(10,2)` clean with RLS/policies/zero-anon-grants/seed; NEGATIVE sibling `text` aborted via guard exit 3, 0 tables created; DOWN dropped exactly the two new tables, preserving pre-existing ones.
 
 ## Findings
@@ -152,6 +154,6 @@ postbuild: no "service_role" leakage found in dist/ (8 files checked).
 
 ## Conclusion
 
-With the migration applied to production and live evidence in hand, the DB-level verification is now **complete and green**: column types mirror the siblings exactly (Req 9), RLS denies `anon` and grants `authenticated` (Req 10), the singleton seed exists (Req 2), and the derived formula is exercised over 106 real pago rows (Req 1, `58983.52`). The prior report's two DB-bound PARTIAL requirements are now VERIFIED.
+With the migration applied to production and live evidence in hand, the DB-level verification is now **complete and green**: column types mirror the siblings exactly (Req 9), RLS denies `anon` and grants `authenticated` (Req 10), the singleton seed exists (Req 2), and the derived formula is exercised over 106 real pago rows (Req 1, `[redacted]`). The prior report's two DB-bound PARTIAL requirements are now VERIFIED.
 
 **This is still not archive-ready.** Three browser/manual items remain: (1) negative-`cajaCents` red rendering on both surfaces (V.3/Req 7), (2) CLABE copy success + fallback in a real browser (Req 11), and (3) at least one real egreso disbursement so the derived caja visibly decreases (Req 3). V.1 also remains untested (no DI seam), though real data corroborates it. Verdict: **PASS WITH WARNINGS** on the code and schema, **NOT archive-ready** until the browser checks and a real egreso are exercised. Envelope `verdict: fail` reflects the remaining runtime gaps, not a code defect — there are 0 CRITICAL findings and 0 blockers.
