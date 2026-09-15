@@ -135,6 +135,8 @@ export interface DebtViewResponse {
   totalPendienteCents: number;
   deudores: { nickname: string; pendienteCents: number }[];
   banco: { banco: string; clabe: string; titular: string } | null;
+  /** Aggregate cash-on-hand (integer cents), never per-movement detail. May be negative. */
+  cajaCents: number;
 }
 
 /**

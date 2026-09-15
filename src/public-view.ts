@@ -81,6 +81,7 @@ function handleClabeCopy(event: Event): void {
 
 async function loadDebtView(): Promise<void> {
   const totalEl = document.getElementById('vista-total-pendiente')!;
+  const cajaEl = document.getElementById('vista-caja')!;
   const deudoresBody = document.getElementById('vista-deudores-body')!;
   const bancoContainer = document.getElementById('vista-banco')!;
   bancoContainer.addEventListener('click', handleClabeCopy);
@@ -93,6 +94,9 @@ async function loadDebtView(): Promise<void> {
     const data = (await response.json()) as DebtViewResponse;
 
     setText(totalEl, formatCentsMXN(data.totalPendienteCents));
+    setText(cajaEl, formatCentsMXN(data.cajaCents));
+    // Negative caja renders red and unblocked — never hidden, clamped, or gated (spec caja: Negative Caja Is Allowed).
+    cajaEl.className = `text-3xl font-bold mt-1 ${data.cajaCents < 0 ? 'text-red-600' : 'text-green-600'}`;
     deudoresBody.innerHTML = data.deudores.map(renderDeudorRow).join('');
     bancoContainer.innerHTML = renderBanco(data.banco);
     setText(generatedAtEl, new Date(data.generatedAt).toLocaleString('es-MX'));

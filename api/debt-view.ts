@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { aggregateDebtByMember, type CargoPendienteRow } from '../src/lib/debt-view.js';
+import { computeCaja } from '../src/lib/caja.js';
+import { toCents } from '../src/lib/money.js';
 import type { DebtViewResponse } from '../src/lib/types.js';
 
 // ============================================================================
@@ -78,11 +80,35 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       (cargosResult.data ?? []) as unknown as CargoPendienteRow[],
     );
 
+    // Caja aggregate — degrade gracefully: a caja fetch failure must NOT break
+    // the public debt view (spec caja: Negative Caja Is Allowed / aggregate only).
+    let cajaCents = 0;
+    try {
+      const [aperturaRes, pagosRes, egresosRes] = await Promise.all([
+        db.from('configuracion_caja').select('monto_apertura').eq('id', 1).maybeSingle(),
+        db.from('registro_pagos').select('monto_pagado'),
+        db.from('registro_egresos').select('monto'),
+      ]);
+      const cajaError = aperturaRes.error ?? pagosRes.error ?? egresosRes.error;
+      if (cajaError) {
+        console.error('debt-view: caja query failed', cajaError);
+      } else {
+        cajaCents = computeCaja({
+          openingCents: toCents(aperturaRes.data?.monto_apertura ?? 0),
+          pagosCents: (pagosRes.data ?? []).map((row) => toCents(row.monto_pagado)),
+          egresosCents: (egresosRes.data ?? []).map((row) => toCents(row.monto)),
+        }).cajaCents;
+      }
+    } catch (err) {
+      console.error('debt-view: caja aggregation failed', err);
+    }
+
     const responseBody: DebtViewResponse = {
       generatedAt: new Date().toISOString(),
       totalPendienteCents,
       deudores,
       banco: bancoResult.data ?? null,
+      cajaCents,
     };
 
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');

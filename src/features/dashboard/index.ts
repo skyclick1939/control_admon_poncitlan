@@ -1,6 +1,8 @@
 import { dbClient } from '../../lib/supabase';
 import { escapeHtml, setText } from '../../lib/escape';
+import { formatMXN } from '../../lib/money';
 import type { CargoConMiembro, RegistroApoyo, RegistroPago } from '../../lib/types';
+import { fetchCaja } from '../caja/repo';
 import { renderApoyosVsPagosChart } from './charts';
 
 interface Deudor {
@@ -14,6 +16,7 @@ export async function initializeDashboard(): Promise<void> {
   const kpiApoyosTotal = document.getElementById('kpi-apoyos-total')!;
   const kpiPagosTotal = document.getElementById('kpi-pagos-total')!;
   const kpiMiembrosDeuda = document.getElementById('kpi-miembros-deuda')!;
+  const kpiCaja = document.getElementById('kpi-caja')!;
   const deudoresTableContainer = document.getElementById('deudores-table-container')!;
 
   const [
@@ -58,6 +61,19 @@ export async function initializeDashboard(): Promise<void> {
   setText(kpiApoyosTotal, `$${totalApoyos.toFixed(2)}`);
   setText(kpiPagosTotal, `$${totalPagos.toFixed(2)}`);
   setText(kpiMiembrosDeuda, String(deudoresList.length));
+
+  // 5th "Caja" KPI — derived balance via fetchCaja() (already cents) → formatMXN.
+  // No raw arithmetic on this card; the three existing float sums are unchanged.
+  try {
+    const caja = await fetchCaja();
+    setText(kpiCaja, formatMXN(caja.cajaCents));
+    kpiCaja.className = caja.cajaCents < 0
+      ? 'text-3xl font-bold text-red-600 mt-1'
+      : 'text-3xl font-bold text-green-600 mt-1';
+  } catch (error) {
+    console.error('Error fetching caja KPI', error);
+    setText(kpiCaja, '—');
+  }
 
   renderDeudoresTable(deudoresTableContainer, deudoresList, totalDeuda);
   renderApoyosVsPagosChart(totalApoyos, totalPagos);
