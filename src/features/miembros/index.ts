@@ -170,7 +170,7 @@ export function initMiembros(app: App): void {
     e.preventDefault();
     memberFeedback.textContent = '';
     const nickname = nicknameInput.value.trim();
-    const status = statusSelect.value as 'fullparch' | 'prospecto';
+    const status = statusSelect.value as Miembro['status'];
 
     if (!nickname) {
       memberFeedback.textContent = 'El nickname es obligatorio.';

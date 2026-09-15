@@ -1,7 +1,7 @@
 export interface Miembro {
   id: string;
   nickname: string;
-  status: 'fullparch' | 'prospecto';
+  status: 'fullparch' | 'prospecto' | 'interno';
   created_at: string;
   /** Retirement flag (design.md Member lifecycle DDL; spec member-lifecycle). `false` excludes the member from apoyo candidates, the pago selector, and the public debt view, without deleting their history. */
   activo: boolean;
@@ -68,7 +68,7 @@ export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
 
 /** `cargos` joined with its `miembros` nickname, for the dashboard debtor ranking. */
 export interface CargoConMiembro extends Pick<Cargo, 'miembro_id' | 'monto_pendiente'> {
-  miembros: Pick<Miembro, 'nickname'> | null;
+  miembros: Pick<Miembro, 'nickname' | 'status'> | null;
 }
 
 /** `cargos` + its apoyo, for the ADMIN per-member history panel (design.md D14,

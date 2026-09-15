@@ -24,7 +24,7 @@ export async function initializeDashboard(): Promise<void> {
     { data: apoyosData, error: apoyosError },
     { data: pagosData, error: pagosError },
   ] = await Promise.all([
-    dbClient.from('cargos').select('miembro_id, monto_pendiente, miembros(nickname)'),
+    dbClient.from('cargos').select('miembro_id, monto_pendiente, miembros(nickname, status)'),
     dbClient.from('registro_apoyos').select('monto_total'),
     dbClient.from('registro_pagos').select('monto_pagado'),
   ]);
@@ -42,11 +42,18 @@ export async function initializeDashboard(): Promise<void> {
   const apoyos: Pick<RegistroApoyo, 'monto_total'>[] = apoyosData;
   const pagos: Pick<RegistroPago, 'monto_pagado'>[] = pagosData;
 
+  // Internal members (`status='interno'`) are a bookkeeping construct (e.g.
+  // `Gastos_sin_cargar`) — their cargos must never count as debt in the KPI,
+  // the "Miembros con Deuda" count, or the ranking table. The dashboard keeps
+  // its own aggregation (float pesos), so it filters here rather than reusing
+  // the cents-based `aggregateDebtByMember` (units/estado semantics differ).
+  const cargosCobrables = cargos.filter((cargo) => cargo.miembros?.status !== 'interno');
+
   const totalApoyos = apoyos.reduce((sum, item) => sum + item.monto_total, 0);
   const totalPagos = pagos.reduce((sum, item) => sum + item.monto_pagado, 0);
-  const totalDeuda = cargos.reduce((sum, item) => sum + item.monto_pendiente, 0);
+  const totalDeuda = cargosCobrables.reduce((sum, item) => sum + item.monto_pendiente, 0);
 
-  const deudasPorMiembro = cargos.reduce<Record<string, Deudor>>((acc, cargo) => {
+  const deudasPorMiembro = cargosCobrables.reduce<Record<string, Deudor>>((acc, cargo) => {
     if (cargo.miembros && cargo.monto_pendiente > 0.01) {
       const existing = acc[cargo.miembro_id] ?? { nickname: cargo.miembros.nickname, total: 0 };
       existing.total += cargo.monto_pendiente;

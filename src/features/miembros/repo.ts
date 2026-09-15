@@ -15,7 +15,7 @@ export async function fetchMembers(): Promise<Miembro[]> {
 
 export interface NuevoMiembroInput {
   nickname: string;
-  status: 'fullparch' | 'prospecto';
+  status: Miembro['status'];
 }
 
 export async function addMember(input: NuevoMiembroInput): Promise<void> {

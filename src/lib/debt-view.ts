@@ -1,8 +1,9 @@
 import { toCents } from './money.js';
+import type { Miembro } from './types.js';
 
 export interface CargoPendienteRow {
   monto_pendiente: number;
-  miembros: { nickname: string; activo: boolean } | null;
+  miembros: { nickname: string; activo: boolean; status: Miembro['status'] } | null;
 }
 
 export interface DeudorEntry {
@@ -18,10 +19,12 @@ export interface AggregatedDebt {
 /**
  * Aggregates pending cargos per member into whole cents, sorted descending
  * by debt (design.md sequence diagram: public debt view). Rows with no
- * resolved member or a non-positive pendiente are excluded — defensive
- * against join edge cases even though the `estado='pendiente'` query filter
- * should already guarantee a positive amount. PURE, mirrors `money.ts`'s D6
- * pattern: no DB access here, only aggregation over already-fetched rows.
+ * resolved member, a retired (`activo=false`) member, an internal
+ * (`status='interno'`) member, or a non-positive pendiente are excluded —
+ * defensive against join edge cases even though the `estado='pendiente'`
+ * query filter should already guarantee a positive amount. PURE, mirrors
+ * `money.ts`'s D6 pattern: no DB access here, only aggregation over
+ * already-fetched rows.
  */
 export function aggregateDebtByMember(rows: readonly CargoPendienteRow[]): AggregatedDebt {
   const totals = new Map<string, number>();
@@ -30,6 +33,7 @@ export function aggregateDebtByMember(rows: readonly CargoPendienteRow[]): Aggre
     const nickname = row.miembros?.nickname;
     if (!nickname) continue;
     if (row.miembros?.activo === false) continue;
+    if (row.miembros?.status === 'interno') continue;
 
     const cents = toCents(row.monto_pendiente);
     if (cents <= 0) continue;

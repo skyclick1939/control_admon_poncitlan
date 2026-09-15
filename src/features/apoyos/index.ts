@@ -27,7 +27,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
 
   function getMembersToCharge(): Miembro[] {
     const members = activeMiembros(app.state.members);
-    if (tipoDivisionSelect.value === 'TODOS') return members;
+    if (tipoDivisionSelect.value === 'TODOS') return members.filter((m) => m.status !== 'interno');
     if (tipoDivisionSelect.value === 'FULLPARCH') return members.filter((m) => m.status === 'fullparch');
     if (tipoDivisionSelect.value === 'INDIVIDUAL') {
       const checked = Array.from(membersCheckboxList.querySelectorAll<HTMLInputElement>('input:checked'));

@@ -87,7 +87,7 @@ export async function fetchCaja(): Promise<CajaBreakdown> {
 export async function fetchPorCobrar(): Promise<number> {
   const { data, error } = await dbClient
     .from('cargos')
-    .select('monto_pendiente, miembros(nickname, activo)')
+    .select('monto_pendiente, miembros(nickname, activo, status)')
     .eq('estado', 'pendiente');
   if (error) throw error;
   return aggregateDebtByMember((data ?? []) as unknown as CargoPendienteRow[]).totalPendienteCents;
