@@ -58,6 +58,10 @@ export interface RegistroEgreso {
   motivo: string;
   capturado_por: string | null;
   nombre_capturador: string;
+  /** `miembros.id` the disbursement is attributed to, or `null` when the expense has no beneficiary. */
+  beneficiario_id: string | null;
+  /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion (mirrors `nombre_capturador`). */
+  nombre_beneficiario: string | null;
   created_at: string;
 }
 

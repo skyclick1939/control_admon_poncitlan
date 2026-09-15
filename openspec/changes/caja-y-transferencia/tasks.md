@@ -104,6 +104,20 @@ Decision needed before apply: No
 - [ ] 6.8 **SDD artifact pass** (this task): document the internal-member exclusion in `specs/caja/spec.md`, `design.md`, and `tasks.md`. No code, no SQL.
 - [ ] 6.9 **Verify PR 6 (browser-only)**: confirm the pseudo-member no longer appears as a debtor, in "Miembros con Deuda" / the debtors table, or in group divisions, and remains selectable for individual disbursements. **UNCHECKED — browser-only.**
 
+## PR 7 — Egreso beneficiary + loan-vs-expense outflow labels
+
+**Start**: `registro_egresos` carries no beneficiary; outflow cards read "Apoyos Entregados" / "Egresos" with no grouping. **Finish**: egresos are traceable to a beneficiary (internal members selectable, default none); the two outflow cards state their nature under "Salidas del arca".
+
+**Review Workload Forecast (Slice 7)**: ~120 changed lines (two migration files + one type extension + repo persist + form selector/labels), under the 400-line budget; PR 7 stacks onto PR 6.
+
+- [x] 7.1 Create `supabase/sql/phase7_egresos_beneficiario.sql`: add `beneficiario_id uuid references miembros(id) on delete set null` + `nombre_beneficiario text` to `public.registro_egresos`; pre-DDL guard; strictly scoped to `public.registro_egresos`.
+- [x] 7.2 Create `supabase/sql/phase7_egresos_beneficiario_down.sql`: drop the two columns only.
+- [x] 7.3 Extend `RegistroEgreso` in `src/lib/types.ts` with `beneficiario_id: string | null` + `nombre_beneficiario: string | null`.
+- [x] 7.4 Modify `src/features/caja/repo.ts` `saveEgreso` to persist both fields; fetch the member list for the selector (internal members included).
+- [x] 7.5 Modify `src/features/caja/index.ts`: egreso form gains a beneficiary selector (internal members included, default none); relabel `Apoyos Entregados` → "Apoyos entregados (recuperables)" and `Egresos` → "Egresos (no recuperables)", both under a "Salidas del arca" heading.
+- [ ] 7.6 **SDD artifact pass** (this task): document the beneficiary traceability + loan-vs-expense rule in `specs/caja/spec.md`, `design.md`, and `tasks.md`. No code, no SQL.
+- [ ] 7.7 **Verify PR 7 (browser-only)**: confirm the egreso form shows the beneficiary selector (internal members included, default none) and the two outflow cards read the new labels under "Salidas del arca". **UNCHECKED — browser-only.**
+
 ## Final Verification (cross-slice, no new code)
 
 - [x] V.1 Confirm full-`monto_pagado` invariant at `src/features/pagos/repo.ts:59-65` (read-only): `monto_pagado === input.montoPagadoPesos` regardless of `unappliedCents`. **CONFIRMED by inspection; corroborated by 106 real pago rows (derived sum redacted).** NO unit test — no DI seam, out of 400-line budget.

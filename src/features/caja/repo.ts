@@ -14,6 +14,10 @@ export interface EgresoInput {
   motivo: string;
   /** Decimal MXN pesos; stored as `monto` (matching `registro_pagos.monto_pagado`). */
   montoPesos: number;
+  /** `miembros.id` the disbursement is attributed to, or `null` for an un-attributed expense. */
+  beneficiarioId: string | null;
+  /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion. */
+  nombreBeneficiario: string | null;
 }
 
 /**
@@ -28,6 +32,8 @@ export async function saveEgreso(input: EgresoInput): Promise<void> {
     fecha: input.fecha,
     motivo: input.motivo,
     monto: input.montoPesos,
+    beneficiario_id: input.beneficiarioId,
+    nombre_beneficiario: input.nombreBeneficiario,
   });
   if (error) throw error;
 }

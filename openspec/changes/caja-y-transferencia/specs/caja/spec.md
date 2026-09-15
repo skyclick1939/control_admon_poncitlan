@@ -110,7 +110,9 @@ A member whose status is `'interno'` is an internal bookkeeping construct (for e
 
 ### Requirement: Breakdown Cards
 
-The Arca breakdown MUST present the terms: `Apertura` · `Pagos recibidos` · `Apoyos entregados` · `Egresos` · `Arca (disponible)` · `Por cobrar`.
+The Arca breakdown MUST present the terms: `Apertura` · `Pagos recibidos` · `Apoyos entregados (recuperables)` · `Egresos (no recuperables)` · `Arca (disponible)` · `Por cobrar`. The two outflow cards — `Apoyos entregados (recuperables)` and `Egresos (no recuperables)` — MUST be grouped under a single heading "Salidas del arca", so each card states its own nature (money that returns versus money that does not).
+
+(Previously: the outflow cards read `Apoyos entregados` and `Egresos`, with no grouping heading.)
 
 #### Scenario: Breakdown lists all six cards
 
@@ -118,6 +120,37 @@ The Arca breakdown MUST present the terms: `Apertura` · `Pagos recibidos` · `A
 - WHEN the module renders
 - THEN the six cards are shown
 - AND `Arca (disponible)` equals `Apertura + Pagos recibidos − Apoyos entregados − Egresos`
+
+#### Scenario: Outflow cards grouped under "Salidas del arca"
+
+- GIVEN a derived Arca breakdown
+- WHEN the module renders
+- THEN `Apoyos entregados (recuperables)` and `Egresos (no recuperables)` are shown under one "Salidas del arca" heading
+- AND each card's label states whether the money returns ("recuperables") or not ("no recuperables")
+
+### Requirement: Egreso Beneficiary Traceability
+
+An egreso MUST be traceable to a beneficiary. The egreso form MUST offer a beneficiary selector that includes internal members and defaults to none; when a beneficiary is selected, the system MUST record both the member reference and a copy of the member's name so the name survives if the member is later deleted.
+
+#### Scenario: Recording an egreso with a beneficiary
+
+- GIVEN the egreso form, with the beneficiary selector populated (internal members included)
+- WHEN an admin selects a beneficiary and records the disbursement
+- THEN the egreso stores the member reference and a copy of the beneficiary's name
+
+#### Scenario: Beneficiary name survives member deletion
+
+- GIVEN an egreso whose beneficiary member is later deleted
+- WHEN the egreso is displayed
+- THEN the beneficiary's name is still shown
+- AND the member reference resolves to none without losing the name
+
+#### Scenario: No beneficiary required
+
+- GIVEN the egreso form
+- WHEN an admin records a disbursement without selecting a beneficiary
+- THEN the egreso is recorded with no beneficiary
+- AND the selector defaults to none on a fresh form
 
 ### Requirement: Pago_sin_cargo Disbursement Convention
 

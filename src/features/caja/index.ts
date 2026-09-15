@@ -1,7 +1,10 @@
 import type { User } from '@supabase/supabase-js';
 import type { CajaBreakdown } from '../../lib/caja';
-import { setText } from '../../lib/escape';
+import { escapeHtml, setText } from '../../lib/escape';
+import { activeMiembros } from '../../lib/miembros';
 import { formatMXN } from '../../lib/money';
+import type { Miembro } from '../../lib/types';
+import { fetchMembers } from '../miembros/repo';
 import { fetchApertura, fetchCaja, fetchPorCobrar, saveApertura, saveEgreso } from './repo';
 
 export interface CajaDeps {
@@ -11,6 +14,21 @@ export interface CajaDeps {
 export interface CajaApi {
   /** Called by the shell on every navigation to the caja view (mirrors `PagosApi.renderPagosForm`). */
   refresh: () => Promise<void>;
+}
+
+/**
+ * Maps a selected member id to the persisted beneficiary pair, carrying the
+ * `nickname` snapshot so the attribution survives member deletion (mirrors
+ * `nombre_capturador`'s rationale). The empty string (the "no beneficiary"
+ * option) or an unknown id yields both `null`. PURE.
+ */
+function beneficiaryFromSelection(
+  memberId: string,
+  members: readonly Miembro[],
+): { beneficiarioId: string | null; nombreBeneficiario: string | null } {
+  const member = members.find((m) => m.id === memberId);
+  if (!member) return { beneficiarioId: null, nombreBeneficiario: null };
+  return { beneficiarioId: member.id, nombreBeneficiario: member.nickname };
 }
 
 /**
@@ -25,6 +43,7 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
   const egresoMontoInput = document.getElementById('egreso-monto') as HTMLInputElement;
   const egresoFechaInput = document.getElementById('egreso-fecha') as HTMLInputElement;
   const egresoMotivoInput = document.getElementById('egreso-motivo') as HTMLInputElement;
+  const egresoBeneficiarioSelect = document.getElementById('egreso-beneficiario') as HTMLSelectElement;
   const egresoFeedback = document.getElementById('egreso-feedback')!;
   const saveEgresoButton = document.getElementById('save-egreso-button') as HTMLButtonElement;
 
@@ -39,6 +58,9 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
   const cajaEgresosTotal = document.getElementById('caja-egresos-total')!;
   const cajaTotal = document.getElementById('caja-total')!;
   const cajaPorCobrar = document.getElementById('caja-por-cobrar')!;
+
+  /** Active members (incl. internal ones) fetched on render, so the beneficiary selector stays current. */
+  let beneficiarios: Miembro[] = [];
 
   function showEgresoError(message: string): void {
     egresoFeedback.textContent = message;
@@ -76,6 +98,21 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
     cajaTotal.className = breakdown.cajaCents < 0 ? 'text-red-600' : 'text-gray-900';
   }
 
+  /** Fills the beneficiary selector with active members (internal members included); leaves the "no beneficiary" option first. */
+  async function populateBeneficiarios(): Promise<void> {
+    try {
+      beneficiarios = await fetchMembers();
+      egresoBeneficiarioSelect.innerHTML =
+        '<option value="">-- Sin beneficiario --</option>' +
+        activeMiembros(beneficiarios)
+          .map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`)
+          .join('');
+    } catch (error) {
+      console.error('Error al cargar los beneficiarios:', error);
+      // The "no beneficiary" option remains; egreso capture still works un-attributed.
+    }
+  }
+
   async function render(): Promise<void> {
     egresoForm.reset();
     egresoFechaInput.valueAsDate = new Date();
@@ -93,6 +130,7 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
       setText(cajaTotal, 'Error');
       cajaTotal.className = 'text-red-600';
     }
+    await populateBeneficiarios();
   }
 
   egresoForm.addEventListener('submit', async (e) => {
@@ -111,12 +149,18 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
     }
 
     try {
+      const { beneficiarioId, nombreBeneficiario } = beneficiaryFromSelection(
+        egresoBeneficiarioSelect.value,
+        beneficiarios,
+      );
       await saveEgreso({
         capturadoPorId: currentUser.id,
         nombreCapturador: currentUser.email ?? '',
         fecha,
         motivo,
         montoPesos,
+        beneficiarioId,
+        nombreBeneficiario,
       });
       showEgresoSuccess('Egreso registrado.');
       await render();

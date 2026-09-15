@@ -358,6 +358,12 @@
                                                 <label for="egreso-motivo" class="block text-sm font-medium text-gray-700">Motivo</label>
                                                 <input type="text" id="egreso-motivo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                             </div>
+                                            <div>
+                                                <label for="egreso-beneficiario" class="block text-sm font-medium text-gray-700">Beneficiario</label>
+                                                <select id="egreso-beneficiario" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">-- Sin beneficiario --</option>
+                                                </select>
+                                            </div>
                                             <div id="egreso-feedback" class="mt-2 text-sm"></div>
                                             <button type="submit" id="save-egreso-button" disabled class="w-full mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition">Guardar Egreso</button>
                                         </div>
@@ -385,12 +391,13 @@
                                             <dt class="text-sm text-gray-500">Pagos Recibidos</dt>
                                             <dd id="caja-pagos-total" class="text-xl font-bold text-green-600">$0.00</dd>
                                         </div>
+                                        <h3 class="md:col-span-2 text-base font-semibold text-gray-700 mt-2">Salidas del arca</h3>
                                         <div class="p-4 bg-blue-50 rounded-lg">
-                                            <dt class="text-sm text-gray-500">Apoyos Entregados</dt>
+                                            <dt class="text-sm text-gray-500">Apoyos entregados (recuperables)</dt>
                                             <dd id="caja-apoyos-total" class="text-xl font-bold text-blue-600">$0.00</dd>
                                         </div>
                                         <div class="p-4 bg-red-50 rounded-lg">
-                                            <dt class="text-sm text-gray-500">Egresos</dt>
+                                            <dt class="text-sm text-gray-500">Egresos (no recuperables)</dt>
                                             <dd id="caja-egresos-total" class="text-xl font-bold text-red-600">$0.00</dd>
                                         </div>
                                         <div class="p-4 bg-blue-50 rounded-lg">

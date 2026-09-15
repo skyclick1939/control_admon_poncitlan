@@ -247,6 +247,23 @@ The operator books arca disbursements that generate no cargos against a pseudo-m
 
 **Applied and verified in production.** The constraint now reads `CHECK (status = ANY (ARRAY['fullparch','prospecto','interno']))`; `Gastos_sin_cargar` is `status='interno'`; and the receivable measures **11,674.47 unfiltered versus 10,674.47 filtered — a difference of exactly 1,000**, the pseudo-member's phantom cargo. No row was deleted.
 
+## Loan vs Expense and Egreso Beneficiary (amendment)
+
+**The domain rule — loans and expenses must not merge.** `registro_apoyos` and `registro_egresos` are NOT interchangeable ledger terms; they are distinguished by one decisive test: **does the money come back?**
+
+- **An `apoyo entregado` is a LOAN.** Cash leaves, a receivable is created (`cargos`), and members repay through `registro_pagos` — an inflow term. A fully repaid apoyo nets to zero: the club's position is preserved because cash became a claim. Hence the card reads "Apoyos entregados (recuperables)".
+- **An `egreso` is an EXPENSE.** Cash leaves and never returns; the position genuinely shrinks. Hence the card reads "Egresos (no recuperables)".
+
+**Why a non-recoverable disbursement MUST be an egreso — never an apoyo through `Gastos_sin_cargar`.** If a non-recoverable disbursement were recorded as an APOYO against the internal member, the same money would appear in BOTH "Apoyos entregados" and "Egresos": it would count once as an outgoing apoyo and once as an expense, the breakdown cards would stop summing to the Arca balance, and the ledger would label an expense as a loan — the same semantic lie the hidden internal cargo represented (see Internal Member Exclusion). Recording it as an EGRESO keeps each card counting exactly one thing and keeps the reconciliation exact.
+
+**Production evidence.** Of **66,579.46** disbursed as apoyos, **10,674.47** remains receivable — proof that apoyos return (as repayments) and egresos do not. This 10,674.47 is the same filtered "Por cobrar" figure recorded under Internal Member Exclusion.
+
+**Beneficiary schema addition.** `registro_egresos` gains `beneficiario_id` (`uuid references miembros(id) on delete set null`) and `nombre_beneficiario` (`text null`). Unlike `nombre_capturador` (C2, non-null), `nombre_beneficiario` is NULLABLE because the beneficiary itself is optional — the selector defaults to none. The FK/denormalized-name split serves the same traceability purpose as `capturado_por`/`nombre_capturador`: when the member row is deleted, `beneficiario_id` becomes NULL and the copied `nombre_beneficiario` is the only surviving attribution of who received the disbursement. The egreso form gains a beneficiary selector that INCLUDES internal members (deliberately — see Internal Member Exclusion: internal members stay selectable for individual disbursements) and defaults to none; `saveEgreso` persists both fields.
+
+**Phase 7 migration.** `supabase/sql/phase7_egresos_beneficiario.sql` (+ `_down.sql`) adds the two columns with a pre-DDL compatibility guard (the same pattern as `phase5_egresos.sql` and `phase6_miembros_status_interno.sql`), STRICTLY scoped to `public.registro_egresos` — an additive `ALTER TABLE … ADD COLUMN` touching no other table and no existing rows. The `_down.sql` drops only those two columns.
+
+**Card labelling and grouping.** The two outflow cards now state their nature and are grouped under a new heading: `Apoyos Entregados` → **"Apoyos entregados (recuperables)"**, `Egresos` → **"Egresos (no recuperables)"**, both under **"Salidas del arca"**. Labels only — no identifier or DOM id changes, consistent with the Naming Decision.
+
 ## Data-Integrity Notes (verification findings)
 
 Found during verification; may matter at archive time:
