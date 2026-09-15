@@ -239,7 +239,7 @@ The operator books arca disbursements that generate no cargos against a pseudo-m
 
 **One pure, tested rule for the shared path.** `aggregateDebtByMember` (`src/lib/debt-view.ts`) is the single shared aggregator for the receivable total and debtor list; the `'interno'` exclusion there covers BOTH the public debt view (`api/debt-view.ts`) and the caja "Por cobrar" figure (`src/features/caja/repo.ts`). The member remains selectable for INDIVIDUAL disbursements — deliberately the operator's bookkeeping path — and the cargo it creates is exactly what the exclusion hides from every debtor surface.
 
-**Justified dashboard deviation.** `src/features/dashboard/index.ts` filters `status !== 'interno'` separately and deliberately, rather than reusing `aggregateDebtByMember`: its reduce sums raw float pesos across all `estado` values and renders `toFixed(2)`, whereas the aggregator returns whole cents over `estado='pendiente'` rows only. The dashboard's own filter drives the "Miembros con Deuda" KPI count, its percentage denominator, and the debtors table. This is a documented deviation (two surfaces compute money differently), not an oversight.
+**Justified dashboard deviation.** `src/features/dashboard/index.ts` filters `status !== 'interno'` separately and deliberately, rather than reusing `aggregateDebtByMember`: its reduce sums raw float pesos across all `estado` values and renders `toFixed(2)`, whereas the aggregator returns whole cents over `estado='pendiente'` rows only. The dashboard's own filter drives the "Miembros con Deuda" KPI count, its percentage denominator, and the debtors table. This deviation was a mistake, not a justified divergence: the cost only became visible once both screens were compared. See "Decision 2 — One aggregation for debt" below, which corrects it and makes the dashboard derive from the same aggregation as the public view and "Por cobrar".
 
 **Status stays off the public payloads.** `status` remains deliberately excluded from `DebtViewResponse` / `MemberViewResponse` (`src/lib/types.ts:129,145`); the new `'interno'` value MUST NOT leak publicly. The exclusion operates inside the aggregation, not by exposing a new field.
 
@@ -271,6 +271,34 @@ Found during verification; may matter at archive time:
 - **One apoyo does not reconcile.** Exactly ONE apoyo has `monto_total = 4,229.00` while its 6 cargos sum to `8,228.52` (a +3,999.52 excess over `monto_total`). Every other apoyo reconciles to the cent. This single row shifts the reconciling aperture by exactly 3,999.52; the operator will resolve it.
 - **The 79.01 pago-vs-cargo gap is NOT corruption.** `Σ(monto_original) − Σ(monto_pendiente) = 58,904.51` versus `Σ(registro_pagos) = 58,983.52` — a 79.01 gap — is the deliberate overpayment semantics of `aplicarPago`, which records the FULL `monto_pagado` even when FIFO leaves `unappliedCents`. Do not treat this as a reconciliation error.
 - **65 of 318 cargos carry sub-cent amounts.** Values like `monto_pendiente = 3154.491309523809485` violate the integer-cents discipline (money MUST NOT carry more than two decimals), so every displayed total carries hidden fractions. OUTSTANDING — needs its own investigation (likely in the peso/cents conversion path); not fixed here.
+
+## Capture Flow, Debt Aggregation, and Data Classification (post-implementation amendments)
+
+### Decision 1 — One capture flow, three modalities
+
+The operator's capture act is ONE act with THREE modalities — group, individual, and charged directly to the Arca without splitting or recovering. The earlier design kept a separate "Registrar Egreso" form and reasoned that routing a non-recoverable disbursement through the Apoyos flow would double-count. That reasoning holds only while that flow CREATES cargos — which is precisely the defect being fixed, not an argument against the idea.
+
+The resolved design: the Apoyos flow gains a third selector option, "Sin cargos — absorbido por el Arca (no recuperable)", which creates no `registro_apoyos` row and no `cargos`, and instead writes exactly ONE `registro_egresos` row, with an OPTIONAL beneficiary (a general expense has no member). Nothing becomes debt, so nothing can double-count, and the operator never has to choose the right screen.
+
+The standalone "Registrar Egreso" form on the Arca page is now a candidate for removal — but only after the new mode is deployed and confirmed in use, so the operator is never left without a way to record an expense.
+
+### Decision 2 — One aggregation for debt (a bug this exposed)
+
+The admin "Ranking de Deudores" and the public ranking showed DIFFERENT per-member figures for the same members. Production evidence: Zuomi 3154.47 vs 3154.49; Pumba 2741.66 vs 2741.69; Mario 2275.71 vs 2275.73; Warrior 1000.00 vs 1000.02; Ivan 687.50 vs 687.52. Cause: the dashboard aggregated with its own float-peso reduce, while the public view and "Por cobrar" used the pure `aggregateDebtByMember` over integer cents from `estado='pendiente'` rows.
+
+Two screens showing two numbers for the same debt is unacceptable for an auditable ledger. The dashboard now derives from the same aggregation/semantics, and the acceptance criterion is exact numeric equality.
+
+**Correction of the earlier "justified deviation".** The "Justified dashboard deviation" recorded under Internal Member Exclusion was a mistake. It was justified on the grounds that the dashboard's float reduce and the aggregator were different-but-acceptable money computations; the deviation's cost only became visible once both screens were compared and produced different numbers for the same debt. The deviation is now removed: the dashboard uses the same aggregation as the public view and "Por cobrar".
+
+### Decision 3 — A data-classification correction
+
+One row was recorded through the apoyos flow by mistake: apoyo `91d07a16-…`, monto 1000, INDIVIDUAL, whose single cargo sat on the internal member. A phase 8 script moves it to `registro_egresos` (carrying the beneficiary) and deletes the apoyo and its phantom cargo, atomically, guarded, with a reverse script. **The Arca is unchanged** — both an apoyo and an egreso are deductions; only the classification changes and the phantom debt disappears.
+
+### Placeholder finding (a valuable data finding, now ended)
+
+Investigating the above revealed that several apoyos carry `monto_total = 0.10` split across all members in cents (0.01–0.02 each). Those are NOT real disbursements: they are placeholder records the operator created solely to preserve a description, because the app previously offered no other way to log an event — the same practice behind the 65 sub-cent `cargos` already recorded as an outstanding defect. The operator has stopped the practice.
+
+Consequence recorded honestly: those placeholders create cents-level phantom debt on real members (they are what makes a member show a few cents owed). The investigation ALSO confirmed there is NO double-counting of the real amounts — the consolidated 1000 record is the real one, and the 0.10 records are placeholders, not 500s. A future cleanup is recommended; it is not performed here.
 
 ## Open Questions
 

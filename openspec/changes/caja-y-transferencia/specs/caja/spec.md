@@ -231,3 +231,53 @@ Both new tables MUST enable RLS, MUST `revoke all … from anon`, and MUST use t
 - GIVEN an authenticated admin satisfying `public.is_admin()`
 - WHEN they query either new table
 - THEN access is granted through the existing policy pattern
+
+### Requirement: Single Capture Flow with Three Modalities
+
+The operator's capture act MUST be a single flow with three modalities: group, individual, and charged directly to the Arca without splitting or recovering. The Apoyos flow MUST offer a third selector option labelled "Sin cargos — absorbido por el Arca (no recuperable)". When that option is selected, the system MUST NOT create a `registro_apoyos` row and MUST NOT create any `cargos`; it MUST instead write exactly ONE `registro_egresos` row, with an OPTIONAL beneficiary (a general expense has no member). Because no cargos are created, nothing becomes debt and nothing can double-count, and the operator never has to choose the right screen to record an expense.
+
+The standalone "Registrar Egreso" form on the Arca page MAY be removed only after the new mode is deployed and confirmed in use, so the operator is never left without a way to record an expense.
+
+#### Scenario: Third modality writes one egreso, no apoyo and no cargos
+
+- GIVEN the Apoyos capture flow
+- WHEN the operator selects "Sin cargos — absorbido por el Arca (no recuperable)"
+- THEN no `registro_apoyos` row is created
+- AND no `cargos` are created
+- AND exactly one `registro_egresos` row is written
+
+#### Scenario: General expense has no beneficiary
+
+- GIVEN the operator records a general expense through the sin-cargos modality
+- WHEN no member is the counterpart
+- THEN the egreso is recorded with no beneficiary
+
+#### Scenario: Sin-cargos disbursement to a member carries the beneficiary
+
+- GIVEN the operator records a sin-cargos disbursement to a named member
+- WHEN they select the member as beneficiary
+- THEN the egreso records that beneficiary
+
+#### Scenario: Operator records every disbursement from one flow
+
+- GIVEN the operator needs to record a disbursement, whether recoverable or not
+- WHEN they open the capture flow
+- THEN all three modalities are available from that same flow
+- AND the operator does not need to choose a different screen to record an expense
+
+### Requirement: Debt Consistency Across Surfaces
+
+The receivable figure shown anywhere MUST be identical for the same member. Every surface that displays a member's debt — the admin "Ranking de Deudores", the public ranking, and "Por cobrar" — MUST derive from the SAME aggregation semantics (the pure aggregator over integer cents from `estado='pendiente'` rows), so that no two screens show different per-member figures. The acceptance criterion MUST be exact numeric equality.
+
+#### Scenario: Identical per-member receivable everywhere
+
+- GIVEN the same member appears on the admin ranking, the public ranking, and "Por cobrar"
+- WHEN each surface renders
+- THEN the member's receivable figure is numerically identical on every surface
+
+#### Scenario: No cents-level divergence from a separate reduce
+
+- GIVEN a member whose pending balance spans cargos
+- WHEN the admin ranking, the public ranking, and "Por cobrar" all render that member
+- THEN each surface shows the exact same figure
+- AND no surface shows a cents-level difference caused by a separate float reduce

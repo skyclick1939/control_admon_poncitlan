@@ -1,6 +1,7 @@
 import { dbClient } from '../../lib/supabase';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
 import type { Miembro } from '../../lib/types';
+import { saveEgreso } from '../caja/repo';
 
 export interface NuevoApoyoInput {
   capturadoPorId: string;
@@ -49,4 +50,26 @@ export async function saveApoyo(input: NuevoApoyoInput): Promise<void> {
 
   const { error: cargosError } = await dbClient.from('cargos').insert(cargosToInsert);
   if (cargosError) throw cargosError;
+}
+
+export interface SinCargosInput {
+  capturadoPorId: string;
+  nombreCapturador: string;
+  fecha: string;
+  motivo: string;
+  montoPesos: number;
+  /** `miembros.id` the expense is attributed to, or `null` for an un-attributed expense. */
+  beneficiarioId: string | null;
+  /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion. */
+  nombreBeneficiario: string | null;
+}
+
+/**
+ * Records a "Sin cargos" apoyo as a single `registro_egresos` row — an expense,
+ * NOT a loan. Deliberately writes NO `registro_apoyos` and NO `cargos` rows, so
+ * nothing becomes debt. Delegates one-directionally to the caja feature's
+ * `saveEgreso`, keeping the egreso insert in exactly one place.
+ */
+export async function saveApoyoSinCargos(input: SinCargosInput): Promise<void> {
+  await saveEgreso(input);
 }

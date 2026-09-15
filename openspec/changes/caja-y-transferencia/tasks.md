@@ -118,6 +118,18 @@ Decision needed before apply: No
 - [ ] 7.6 **SDD artifact pass** (this task): document the beneficiary traceability + loan-vs-expense rule in `specs/caja/spec.md`, `design.md`, and `tasks.md`. No code, no SQL.
 - [ ] 7.7 **Verify PR 7 (browser-only)**: confirm the egreso form shows the beneficiary selector (internal members included, default none) and the two outflow cards read the new labels under "Salidas del arca". **UNCHECKED — browser-only.**
 
+## PR 8 — Single capture flow (three modalities) + unified debt aggregation + data-classification fix
+
+**Start**: the Apoyos flow has two modalities (group, individual) and a separate "Registrar Egreso" form on the Arca page; the dashboard "Ranking de Deudores" aggregates debt with its own float-peso reduce, diverging from the public ranking and "Por cobrar"; one apoyo (`91d07a16-…`, monto 1000, INDIVIDUAL) is misclassified with its single phantom cargo on the internal member. **Finish**: a third selector modality "Sin cargos — absorbido por el Arca (no recuperable)" records a non-recoverable disbursement as a single egreso (no apoyo, no cargos); every surface shows the same per-member receivable; the misclassified row is moved to `registro_egresos` and its phantom cargo deleted.
+
+**Review Workload Forecast (Slice 8)**: ~150 changed lines (one selector modality + dashboard aggregation switch + phase 8 migration/reverse scripts + three artifact files), under the 400-line budget; PR 8 stacks onto PR 7.
+
+- [x] 8.1 Add the third selector modality "Sin cargos — absorbido por el Arca (no recuperable)" to the Apoyos flow; on selection write exactly one `registro_egresos` row (optional beneficiary), create no `registro_apoyos` row and no `cargos`. Mark the standalone "Registrar Egreso" form a removal candidate, kept until the new mode is confirmed in use.
+- [x] 8.2 Make the dashboard "Ranking de Deudores" derive per-member debt from the same aggregation as the public ranking and "Por cobrar" (the pure aggregator over integer cents from `estado='pendiente'` rows); remove the dashboard's own float-peso reduce so no two screens show different figures for the same member.
+- [x] 8.3 Create the phase 8 migration script (+ reverse `_down.sql`): move apoyo `91d07a16-…` (monto 1000, INDIVIDUAL) to `registro_egresos` carrying the beneficiary, delete the apoyo and its phantom cargo — atomically, guarded, with a reverse script. Arca unchanged (an apoyo and an egreso are both deductions; only the classification changes and the phantom debt disappears).
+- [ ] 8.4 **SDD artifact pass** (this task): document the single-capture-flow-with-three-modalities decision, the debt-consistency decision, the data-classification correction, and the placeholder finding in `specs/caja/spec.md`, `design.md`, and `tasks.md`. No code, no SQL.
+- [ ] 8.5 **Verify PR 8 (browser-only)**: confirm the third modality records one egreso with no cargos and no apoyo; confirm the admin ranking, public ranking, and "Por cobrar" show identical per-member figures; confirm the standalone "Registrar Egreso" form remains available until the new mode is confirmed in use. **UNCHECKED — browser-only.**
+
 ## Final Verification (cross-slice, no new code)
 
 - [x] V.1 Confirm full-`monto_pagado` invariant at `src/features/pagos/repo.ts:59-65` (read-only): `monto_pagado === input.montoPagadoPesos` regardless of `unappliedCents`. **CONFIRMED by inspection; corroborated by 106 real pago rows (derived sum redacted).** NO unit test — no DI seam, out of 400-line budget.

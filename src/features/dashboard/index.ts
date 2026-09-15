@@ -1,7 +1,8 @@
 import { dbClient } from '../../lib/supabase';
 import { escapeHtml, setText } from '../../lib/escape';
-import { formatMXN } from '../../lib/money';
-import type { CargoConMiembro, RegistroApoyo, RegistroPago } from '../../lib/types';
+import { formatMXN, toPesos } from '../../lib/money';
+import { aggregateDebtByMember, type CargoPendienteRow } from '../../lib/debt-view';
+import type { RegistroApoyo, RegistroPago } from '../../lib/types';
 import { fetchCaja } from '../caja/repo';
 import { renderApoyosVsPagosChart } from './charts';
 
@@ -24,7 +25,7 @@ export async function initializeDashboard(): Promise<void> {
     { data: apoyosData, error: apoyosError },
     { data: pagosData, error: pagosError },
   ] = await Promise.all([
-    dbClient.from('cargos').select('miembro_id, monto_pendiente, miembros(nickname, status)'),
+    dbClient.from('cargos').select('monto_pendiente, miembros(nickname, activo, status)').eq('estado', 'pendiente'),
     dbClient.from('registro_apoyos').select('monto_total'),
     dbClient.from('registro_pagos').select('monto_pagado'),
   ]);
@@ -34,35 +35,25 @@ export async function initializeDashboard(): Promise<void> {
     return;
   }
 
-  // The untyped supabase-js client heuristically infers `miembros` as an array from the
-  // plural table name; at runtime (and per PostgREST's many-to-one embed rules for
-  // cargos.miembro_id -> miembros.id) it is a single object, matching the original code's
-  // `cargo.miembros.nickname` access.
-  const cargos = cargosData as unknown as CargoConMiembro[];
+  // Debt now flows through the SAME pure integer-cents aggregator the public
+  // view and caja "Por cobrar" use (`aggregateDebtByMember` over
+  // `estado='pendiente'` rows), so the admin ranking and the public ranking
+  // report identical per-member figures. The internal-member
+  // (`status='interno'`) and retired-member exclusions live inside the
+  // aggregator — no separate filter here.
+  const cargos = cargosData as unknown as CargoPendienteRow[];
   const apoyos: Pick<RegistroApoyo, 'monto_total'>[] = apoyosData;
   const pagos: Pick<RegistroPago, 'monto_pagado'>[] = pagosData;
 
-  // Internal members (`status='interno'`) are a bookkeeping construct (e.g.
-  // `Gastos_sin_cargar`) — their cargos must never count as debt in the KPI,
-  // the "Miembros con Deuda" count, or the ranking table. The dashboard keeps
-  // its own aggregation (float pesos), so it filters here rather than reusing
-  // the cents-based `aggregateDebtByMember` (units/estado semantics differ).
-  const cargosCobrables = cargos.filter((cargo) => cargo.miembros?.status !== 'interno');
+  const { totalPendienteCents, deudores } = aggregateDebtByMember(cargos);
 
   const totalApoyos = apoyos.reduce((sum, item) => sum + item.monto_total, 0);
   const totalPagos = pagos.reduce((sum, item) => sum + item.monto_pagado, 0);
-  const totalDeuda = cargosCobrables.reduce((sum, item) => sum + item.monto_pendiente, 0);
-
-  const deudasPorMiembro = cargosCobrables.reduce<Record<string, Deudor>>((acc, cargo) => {
-    if (cargo.miembros && cargo.monto_pendiente > 0.01) {
-      const existing = acc[cargo.miembro_id] ?? { nickname: cargo.miembros.nickname, total: 0 };
-      existing.total += cargo.monto_pendiente;
-      acc[cargo.miembro_id] = existing;
-    }
-    return acc;
-  }, {});
-
-  const deudoresList = Object.values(deudasPorMiembro).sort((a, b) => b.total - a.total);
+  const totalDeuda = toPesos(totalPendienteCents);
+  const deudoresList: Deudor[] = deudores.map((deudor) => ({
+    nickname: deudor.nickname,
+    total: toPesos(deudor.pendienteCents),
+  }));
 
   setText(kpiDeudaTotal, `$${totalDeuda.toFixed(2)}`);
   setText(kpiApoyosTotal, `$${totalApoyos.toFixed(2)}`);

@@ -119,7 +119,7 @@
                                     <p id="kpi-deuda-total" class="text-3xl font-bold text-red-600 mt-1">$0.00</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
-                                    <h3 class="text-sm font-medium text-gray-500">Apoyos Otorgados (Total)</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Apoyos entregados (recuperables)</h3>
                                     <p id="kpi-apoyos-total" class="text-3xl font-bold text-blue-600 mt-1">$0.00</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
@@ -269,12 +269,23 @@
                                             <option value="INDIVIDUAL">Individual</option>
                                             <option value="FULLPARCH">Fullparch</option>
                                             <option value="TODOS">Todos</option>
+                                            <option value="SIN_CARGOS">Sin cargos — absorbido por el Arca (no recuperable)</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div id="individual-members-list" class="mt-6 view-hidden">
                                     <h3 class="text-lg font-medium text-gray-800 mb-2">Seleccionar Miembros</h3>
                                     <div id="members-checkbox-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-48 overflow-y-auto p-4 border rounded-md"></div>
+                                </div>
+                                <div id="beneficiario-list" class="mt-6 view-hidden">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label for="apoyo-beneficiario" class="block text-sm font-medium text-gray-700">Beneficiario (opcional)</label>
+                                            <select id="apoyo-beneficiario" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                <option value="">-- Sin beneficiario --</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div id="division-info" class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg view-hidden"></div>
                                 <div id="apoyo-feedback" class="mt-4 text-sm"></div>
