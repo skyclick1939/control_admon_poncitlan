@@ -353,33 +353,6 @@
                         <div id="caja-content" class="page-content view-hidden">
                             <h1 class="text-3xl font-bold text-gray-800 mb-6">Arca</h1>
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
-                                    <h2 class="text-xl font-semibold mb-4">Registrar Egreso</h2>
-                                    <form id="egreso-form" method="post">
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label for="egreso-monto" class="block text-sm font-medium text-gray-700">Monto ($)</label>
-                                                <input type="number" id="egreso-monto" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label for="egreso-fecha" class="block text-sm font-medium text-gray-700">Fecha</label>
-                                                <input type="date" id="egreso-fecha" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label for="egreso-motivo" class="block text-sm font-medium text-gray-700">Motivo</label>
-                                                <input type="text" id="egreso-motivo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label for="egreso-beneficiario" class="block text-sm font-medium text-gray-700">Beneficiario</label>
-                                                <select id="egreso-beneficiario" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                                                    <option value="">-- Sin beneficiario --</option>
-                                                </select>
-                                            </div>
-                                            <div id="egreso-feedback" class="mt-2 text-sm"></div>
-                                            <button type="submit" id="save-egreso-button" disabled class="w-full mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition">Guardar Egreso</button>
-                                        </div>
-                                    </form>
-                                </div>
                                 <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
                                     <h2 class="text-xl font-semibold mb-4">Monto de Apertura</h2>
                                     <form id="apertura-form" method="post">
