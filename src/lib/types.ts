@@ -45,6 +45,22 @@ export interface RegistroPago {
   created_at: string;
 }
 
+/**
+ * Row of `public.registro_egresos` (design.md caja). `capturado_por` is
+ * `string | null` because the FK is `references auth.users(id) on delete set
+ * null`; `nombre_capturador` is deliberately non-null — it is the only
+ * surviving attribution when the capturing account is deleted.
+ */
+export interface RegistroEgreso {
+  id: string;
+  monto: number;
+  fecha: string;
+  motivo: string;
+  capturado_por: string | null;
+  nombre_capturador: string;
+  created_at: string;
+}
+
 /** `cargos` joined with its parent `registro_apoyos`, for the pagos debt breakdown view. */
 export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
   registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'>;
@@ -95,6 +111,14 @@ export interface ConfiguracionBancaria {
   banco: string;
   clabe: string;
   titular: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+/** Row of `public.configuracion_caja` (design.md caja). Singleton, always `id: 1`; holds the stored opening amount. */
+export interface ConfiguracionCaja {
+  id: number;
+  monto_apertura: number;
   updated_by: string | null;
   updated_at: string;
 }
