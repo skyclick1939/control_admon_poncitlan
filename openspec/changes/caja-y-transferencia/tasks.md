@@ -88,6 +88,22 @@ Decision needed before apply: No
 - [x] 5.7 Render the six breakdown cards: `Apertura` · `Pagos recibidos` · `Apoyos entregados` · `Egresos` · `Arca (disponible)` · `Por cobrar`.
 - [x] 5.8 **Verify PR 5**: `vitest run` + `tsc --noEmit` green; manual: recording a sin-cargo apoyo as egreso decreases Arca; an unrepaid apoyo leaves Arca negative; "Por cobrar" unchanged by a sin-cargo disbursement.
 
+## PR 6 — Internal-member exclusion from receivables
+
+**Start**: `miembros.status` allows only `'fullparch' | 'prospecto'`; the pseudo-member `Gastos_sin_cargar` (a `fullparch`) counts as debt and, being `fullparch`, also receives group-division cargos. **Finish**: a third `status` value `'interno'` excludes internal bookkeeping members from every debtor/receivable surface; the exclusion rides the pre-existing `fullparch` group-division filter; `status` still never leaves the public payloads.
+
+**Review Workload Forecast (Slice 6)**: ~130 changed lines (one type widening + one pure aggregator filter + one test + two consumer filters + two migration files), under the 400-line budget; PR 6 stacks onto PR 5.
+
+- [x] 6.1 Widen `Miembro.status` to `'fullparch' | 'prospecto' | 'interno'` in `src/lib/types.ts` (line 4) — mirrors the DB CHECK constraint.
+- [x] 6.2 Exclude `'interno'` in `aggregateDebtByMember` (`src/lib/debt-view.ts`) — the single pure place covering BOTH the public debt view (`api/debt-view.ts`) and the caja "Por cobrar" (`src/features/caja/repo.ts`).
+- [x] 6.3 Extend `src/lib/debt-view.test.ts` to cover the `'interno'` exclusion (the rule is proven in one pure, tested place).
+- [x] 6.4 Add `status !== 'interno'` to `src/features/dashboard/index.ts`'s own aggregation (the "Miembros con Deuda" KPI count, its percentage denominator, and the debtors table) — a deliberate, documented deviation from `aggregateDebtByMember` (raw float reduce across all `estado` vs whole cents over `estado='pendiente'`).
+- [x] 6.5 Add `status !== 'interno'` to the `TODOS` group-division filter in `src/features/apoyos/index.ts`; `FULLPARCH` already excludes it via the pre-existing `status === 'fullparch'` filter.
+- [x] 6.6 Create `supabase/sql/phase6_miembros_status_interno.sql`: widen `miembros_status_check` to admit `'interno'` in a single atomic `ALTER TABLE` (drop + add), preceded by a pre-DDL compatibility guard (mirroring `phase5_egresos.sql`) that aborts cleanly on a drifted schema.
+- [x] 6.7 Create `supabase/sql/phase6_miembros_status_interno_down.sql`: assert no row uses `'interno'` BEFORE narrowing, else raise a clear message telling the operator to reassign those rows first (fail-safe — never leaves the table unprotected).
+- [ ] 6.8 **SDD artifact pass** (this task): document the internal-member exclusion in `specs/caja/spec.md`, `design.md`, and `tasks.md`. No code, no SQL.
+- [ ] 6.9 **Verify PR 6 (browser-only)**: confirm the pseudo-member no longer appears as a debtor, in "Miembros con Deuda" / the debtors table, or in group divisions, and remains selectable for individual disbursements. **UNCHECKED — browser-only.**
+
 ## Final Verification (cross-slice, no new code)
 
 - [x] V.1 Confirm full-`monto_pagado` invariant at `src/features/pagos/repo.ts:59-65` (read-only): `monto_pagado === input.montoPagadoPesos` regardless of `unappliedCents`. **CONFIRMED by inspection; corroborated by 106 real pago rows (derived sum redacted).** NO unit test — no DI seam, out of 400-line budget.

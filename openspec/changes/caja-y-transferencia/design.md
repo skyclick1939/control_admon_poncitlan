@@ -231,12 +231,29 @@ The outstanding receivable "Por cobrar" is the sum `Σ(cargos.monto_pendiente)`,
 
 The operator sometimes disburses a support funded from the Arca balance WITHOUT creating cargos, because the Arca balance has enough funds and they do not want to accumulate debt. **Operational rule:** such a disbursement MUST be recorded as a `registro_egresos` row (money that leaves and does not return), with the reason naming the beneficiary (e.g. `motivo = "Apoyo sin cargo"`). **Trap (record prominently):** it MUST **NOT** be recorded as a `registro_pagos` row. `registro_pagos` is INFLOW and would ADD to `cajaCents` instead of subtracting — a sign inversion. The operator's natural vocabulary ("pago") collides with the app's column semantics here, so the trap is called out explicitly. Because no cargos are created, "Por cobrar" is correctly unaffected.
 
+## Internal Member Exclusion (amendment)
+
+The operator books arca disbursements that generate no cargos against a pseudo-member `Gastos_sin_cargar`. That member was counting as debt (wrong) and, being `status='fullparch'`, was also eligible to receive group-division cargos. The fix is a third `miembros.status` value, `'interno'`.
+
+**Decision — a third `status` value, not a new column.** `Miembro.status` is now `'fullparch' | 'prospecto' | 'interno'` (`src/lib/types.ts:4`). A third enum value is chosen over a boolean/flag column because the pre-existing `FULLPARCH` group-division filter (`status === 'fullparch'` in `src/features/apoyos/index.ts`) supplies group-division exclusion for free: an `'interno'` member is neither `fullparch` nor `prospecto`, so it falls outside `FULLPARCH` automatically and outside `TODOS` via the new `status !== 'interno'` filter. A dedicated column would have added a second source of truth for "is this a real member" and forced every query to change; the enum value rides the existing filters.
+
+**One pure, tested rule for the shared path.** `aggregateDebtByMember` (`src/lib/debt-view.ts`) is the single shared aggregator for the receivable total and debtor list; the `'interno'` exclusion there covers BOTH the public debt view (`api/debt-view.ts`) and the caja "Por cobrar" figure (`src/features/caja/repo.ts`). The member remains selectable for INDIVIDUAL disbursements — deliberately the operator's bookkeeping path — and the cargo it creates is exactly what the exclusion hides from every debtor surface.
+
+**Justified dashboard deviation.** `src/features/dashboard/index.ts` filters `status !== 'interno'` separately and deliberately, rather than reusing `aggregateDebtByMember`: its reduce sums raw float pesos across all `estado` values and renders `toFixed(2)`, whereas the aggregator returns whole cents over `estado='pendiente'` rows only. The dashboard's own filter drives the "Miembros con Deuda" KPI count, its percentage denominator, and the debtors table. This is a documented deviation (two surfaces compute money differently), not an oversight.
+
+**Status stays off the public payloads.** `status` remains deliberately excluded from `DebtViewResponse` / `MemberViewResponse` (`src/lib/types.ts:129,145`); the new `'interno'` value MUST NOT leak publicly. The exclusion operates inside the aggregation, not by exposing a new field.
+
+**Migration — `supabase/sql/phase6_miembros_status_interno.sql` (+ `_down.sql`).** The TypeScript union mirrored a LIVE DB CHECK constraint, so widening the type alone left the feature inert: writes with `status='interno'` failed with `23514` (`miembros_status_check`). Phase 6 widens `miembros_status_check` to admit `'interno'` in a single atomic `ALTER TABLE` (drop + add) so there is no window where the column is unprotected, preceded by a compatibility guard that runs BEFORE any DDL (mirroring `phase5_egresos.sql`) and aborts cleanly on a drifted schema. The `_down.sql` fails safe: it asserts no row uses `'interno'` BEFORE narrowing, raising a clear message telling the operator to reassign those rows first — because dropping the constraint first and then failing would leave the table unprotected. The migration is STRICTLY scoped to this app's own `public.miembros` (the shared "arca" project); it changes no data.
+
+**Applied and verified in production.** The constraint now reads `CHECK (status = ANY (ARRAY['fullparch','prospecto','interno']))`; `Gastos_sin_cargar` is `status='interno'`; and the receivable measures **11,674.47 unfiltered versus 10,674.47 filtered — a difference of exactly 1,000**, the pseudo-member's phantom cargo. No row was deleted.
+
 ## Data-Integrity Notes (verification findings)
 
 Found during verification; may matter at archive time:
 
 - **One apoyo does not reconcile.** Exactly ONE apoyo has `monto_total = 4,229.00` while its 6 cargos sum to `8,228.52` (a +3,999.52 excess over `monto_total`). Every other apoyo reconciles to the cent. This single row shifts the reconciling aperture by exactly 3,999.52; the operator will resolve it.
 - **The 79.01 pago-vs-cargo gap is NOT corruption.** `Σ(monto_original) − Σ(monto_pendiente) = 58,904.51` versus `Σ(registro_pagos) = 58,983.52` — a 79.01 gap — is the deliberate overpayment semantics of `aplicarPago`, which records the FULL `monto_pagado` even when FIFO leaves `unappliedCents`. Do not treat this as a reconciliation error.
+- **65 of 318 cargos carry sub-cent amounts.** Values like `monto_pendiente = 3154.491309523809485` violate the integer-cents discipline (money MUST NOT carry more than two decimals), so every displayed total carries hidden fractions. OUTSTANDING — needs its own investigation (likely in the peso/cents conversion path); not fixed here.
 
 ## Open Questions
 

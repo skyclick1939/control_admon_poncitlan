@@ -90,6 +90,24 @@ The module MUST display the outstanding receivable "Por cobrar" alongside "Arca 
 - THEN "Por cobrar" equals `Σ(cargos.monto_pendiente)`
 - AND "Arca (disponible)" is computed independently, without the "Por cobrar" term
 
+### Requirement: Internal Members Excluded from Receivables
+
+A member whose status is `'interno'` is an internal bookkeeping construct (for example the pseudo-member used to book arca disbursements that generate no cargos) and MUST NOT be counted as debt. The system MUST exclude internal members from the receivable total and from the debtor list shown on both the caja module ("Por cobrar") and the public debt view, so an internal member's cargos never inflate what the operator sees as owed. The operator MUST still be able to select an internal member when recording an individual disbursement.
+
+#### Scenario: Internal member does not inflate the receivable
+
+- GIVEN an internal member holding cargos
+- WHEN "Por cobrar" or the public debt view is rendered
+- THEN the internal member's cargos are excluded from the receivable total
+- AND no debtor row is shown for the internal member
+
+#### Scenario: Internal member stays selectable for individual disbursements
+
+- GIVEN the operator books an arca disbursement that generates no cargos
+- WHEN they select the counterpart for that individual disbursement
+- THEN the internal member remains selectable
+- AND the cargo it creates is hidden from the debtor surfaces by the exclusion rule
+
 ### Requirement: Breakdown Cards
 
 The Arca breakdown MUST present the terms: `Apertura` · `Pagos recibidos` · `Apoyos entregados` · `Egresos` · `Arca (disponible)` · `Por cobrar`.
