@@ -49,12 +49,19 @@ A chapter trip was funded by the members who did not attend (one fixed contribut
 
 ### E2 — Módulo de ajustes (dentro de `ajustes-y-clasificacion`)
 
-- [ ] 3.1 Tabla `registro_ajustes` + RLS + escritor único
-- [ ] 3.2 `applyAjuste` pura (cargo objetivo o FIFO) testeada antes de usarse
-- [ ] 3.3 Módulo de UI: condonación, cesión y reversa auditada
+**Estado a 2026-10-06 (sesión de implementación):** diseño congelado; `phase11` aplicado en vivo con prueba de cero rastro.
+
+- [x] 3.1 Tabla `registro_ajustes` + RLS + escritor único
+  - Evidencia: `phase11_registro_ajustes.sql` + `_down`; dos pruebas de cero rastro contra producción (forward en transacción y round-trip forward+down, ambas abortadas con excepción deliberada y revertidas). Read-back: tabla de 14 columnas, una política `is_admin()` (`admins_all_registro_ajustes`, ALL), cero permisos a `anon`, 6 índices (pkey + 4 de consulta + el índice único parcial que impide revertir dos veces), 4 CHECK y 5 FK. El CHECK de `tipo` se amplió en la misma sesión a `condonacion | cesion | pago_tercero | reversa` con la tabla aún vacía, y se releyó.
+- [ ] 3.2 `src/lib/ajustes.ts` pura (cargo objetivo o FIFO) testeada antes de usarse
+- [ ] 3.3 Módulo de UI: condonación, cesión, pago a tercero y reversa auditada
 - [ ] 3.4 Guardia "naturaleza del cobro" en el formulario de Pagos
 - [ ] 3.5 Reporte "Ajustes otorgados" + indicador "Posición neta"
-- [ ] 3.6 Refinamiento (a decidir): cobrar a un ex miembro con saldo pendiente
+- [ ] 3.6 Refinamiento (a decidir): cobrar a un ex miembro con saldo pendiente.
+
+**Forma del libro (D5/D7), congelada para la implementación:** una fila por cargo afectado; `monto` es el delta CON SIGNO aplicado a `cargos.monto_pendiente`; `pendiente_resultante` es el valor que la fila dejó y es lo que hace la reversa demostrable; `grupo_id` une las filas de una acción; `grupo_revertido` nombra el grupo que una fila `reversa` corrige. Una cesión son dos filas más un cargo nuevo para el receptor. `pago_tercero` tiene la misma forma que la condonación (reduce el cargo, no entra efectivo al arca, contraparte nula): un tercero pagó por el miembro.
+
+**Desviación consciente y declarada:** `supabase-js` no ofrece una transacción multi-sentencia, así que el escritor replica el patrón ya aceptado de `aplicarPago` (escrituras secuenciales) pero **escribe primero las filas del libro** (con el id del cargo nuevo generado en el cliente) y después aplica los cargos. Una falla parcial queda documentada en el libro y es corregible con la propia reversa, que es la tesis del diseño.
 
 ## Evidence required to close each task
 

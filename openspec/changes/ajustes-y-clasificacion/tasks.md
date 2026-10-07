@@ -45,8 +45,8 @@ Chained PRs recommended: Yes
 
 ## 2. Módulo de ajustes (E2)
 
-- [ ] 2.1 **`phase11_registro_ajustes.sql`** (+ `_down`): the ledger (member, optional cargo, type, amount, concept, counterpart, observations, author and name snapshot), `revoke all … from anon`, an `is_admin()` policy.
-  - Evidence: read-back of the table, its policy, and the anon grants.
+- [x] 2.1 **`phase11_registro_ajustes.sql`** (+ `_down`): the ledger (member, optional cargo, type, amount, concept, counterpart, observations, author and name snapshot), `revoke all … from anon`, an `is_admin()` policy.
+  - Evidence: **APPLIED live 2026-10-06** with the operator's authorization, after two zero-trace proofs against production (the forward run inside a transaction, and a forward+down round-trip, both aborted with a deliberate in-transaction exception and rolled back with an identical read-back). Read-back after applying: the table with 14 columns, one `is_admin()` policy (`admins_all_registro_ajustes`, ALL), zero `anon` grants, 6 indexes (pkey + 4 lookup + the partial unique index that makes a second reversal of the same group impossible), 4 CHECK constraints and 5 foreign keys. `tipo` is `condonacion | cesion | pago_tercero | reversa`; the CHECK was widened to add `pago_tercero` in the same session while the table was still empty (tasks 2.5 and the proposal require the direct payment to a third party, which design.md D5 does not model separately) and production was re-read back to match the file. `cargo_id` is `on delete set null` so a reversal can remove the cargo a cession created while the ledger row survives. **Declared deviation**: `supabase-js` has no multi-statement transaction, so the single writer mirrors `aplicarPago`'s accepted sequential-write pattern but inserts the ledger rows FIRST (with the new cargo id generated client-side) and applies the cargo updates after; a partial failure is documented in the ledger and correctable by the reversal path this change adds.
 - [ ] 2.2 **`src/lib/ajustes.ts`** — pure, tested first: apply an amount against a targeted cargo or FIFO, never exceeding `pendingCents`, returning per-cargo results plus the remainder.
   - Evidence: RED then GREEN; cases for exact, partial, over-amount, empty cargo list, and a targeted cargo.
 - [ ] 2.3 **`src/features/ajustes/repo.ts`** — the single writer: one transaction, cargo updates plus one `registro_ajustes` row; never touches `registro_pagos`.
@@ -79,4 +79,4 @@ Chained PRs recommended: Yes
 ## Manual / human-driven checks
 
 - The selector and the module are browser behaviours: they need a real session, not a unit test (the project's established pattern for UI verification).
-- The live SQL of 1.1 and 2.1 needs the operator's explicit sign-off and a read-back after applying, per the project's own gate.
+- The live SQL of 1.1 and 2.1 needs the operator's explicit sign-off and a read-back after applying, per the project's own gate. **2.1: satisfied 2026-10-06** (proofs + read-back above).
