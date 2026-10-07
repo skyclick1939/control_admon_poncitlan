@@ -5,6 +5,7 @@ import { challengeTotp, enrollTotp, hasVerifiedTotpFactor, requiresForcedEnrollm
 import { initAdmin } from './features/admin';
 import { initBankConfig } from './features/admin/bank-config';
 import { checkCurrentAdmin } from './features/admin/repo';
+import { initAjustes } from './features/ajustes';
 import { initApoyos } from './features/apoyos';
 import { initCaja } from './features/caja';
 import { initializeDashboard } from './features/dashboard';
@@ -46,6 +47,7 @@ const pagosApi = initPagos({ app, getCurrentUser });
 const adminApi = initAdmin({ getCurrentUser });
 const bankConfigApi = initBankConfig({ getCurrentUser });
 const cajaApi = initCaja({ getCurrentUser });
+const ajustesApi = initAjustes({ app, getCurrentUser });
 
 const setActiveView = (viewId: string): void => {
   document.querySelectorAll('.page-content').forEach((view) => view.classList.add('view-hidden'));
@@ -57,6 +59,7 @@ const setActiveView = (viewId: string): void => {
 
   if (viewId === 'pagos-content') pagosApi.renderPagosForm();
   if (viewId === 'caja-content') void cajaApi.refresh();
+  if (viewId === 'ajustes-content') void ajustesApi.refresh();
   if (viewId === 'admin-content') {
     void adminApi.refresh();
     void bankConfigApi.refresh();
