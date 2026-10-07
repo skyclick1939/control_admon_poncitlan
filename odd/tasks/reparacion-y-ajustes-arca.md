@@ -40,10 +40,12 @@ A chapter trip was funded by the members who did not attend (one fixed contribut
 
 ### E3 — Catálogo y clasificación (dentro de `ajustes-y-clasificacion`)
 
-- [ ] 2.1 Tabla `catalogo_conceptos` + RLS + semilla (los 6 conceptos con su `naturaleza`)
-- [ ] 2.2 Columnas de concepto en `registro_apoyos` y `registro_egresos` + backfill guiado
-- [ ] 2.3 Combobox con búsqueda dinámica (función pura testeada) + alta de concepto en línea
-- [ ] 2.4 Mostrar el concepto en pagos, historial del miembro y portal
+- [x] 2.1 Catálogo + RLS + semilla — **aplicado y verificado en vivo**: 6 conceptos con su naturaleza, `concepto_id` en ambos libros, RLS con política `is_admin()`, cero permisos a `anon`, 2 índices. Con dos pruebas de cero rastro antes de aplicar (forward solo, y round-trip forward+down)
+- [x] 2.2 Columnas de concepto + **propuestas** de backfill — la clasificación de las 66 filas históricas sigue **PENDIENTE de tu revisión** (los 10 "alta" incluyen al menos 2 falsos positivos demostrables)
+- [x] 2.3 Selector con búsqueda dinámica + alta en línea — 26 pruebas nuevas, suite 216/216, `tsc` limpio; **el comportamiento en navegador NO se verificó**
+- [ ] 2.4 Mostrar el concepto en pagos e historial del miembro — implementado, **sin verificar en navegador**; el portal de miembros quedó fuera de alcance por decisión propia
+- [ ] 2.5 Filtrar movimientos por concepto — hueco declarado por el escritor: el concepto se guarda y se muestra, pero no hay control de filtrado (tarea 1.7)
+- [ ] 2.6 Desactivar conceptos desde la UI — hoy `activo` solo se cambia por SQL (tarea 1.8)
 
 ### E2 — Módulo de ajustes (dentro de `ajustes-y-clasificacion`)
 
