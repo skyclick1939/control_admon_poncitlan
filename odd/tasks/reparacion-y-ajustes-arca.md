@@ -49,15 +49,21 @@ A chapter trip was funded by the members who did not attend (one fixed contribut
 
 ### E2 — Módulo de ajustes (dentro de `ajustes-y-clasificacion`)
 
-**Estado a 2026-10-06 (sesión de implementación):** diseño congelado; `phase11` aplicado en vivo con prueba de cero rastro.
+**Estado a 2026-10-06 (sesión de implementación):** E2 implementado; `phase11` aplicado en vivo con prueba de cero rastro. Verificación independiente: sin hallazgos de bloqueo. Falta sólo lo que exige navegador/base viva (el operador).
 
 - [x] 3.1 Tabla `registro_ajustes` + RLS + escritor único
-  - Evidencia: `phase11_registro_ajustes.sql` + `_down`; dos pruebas de cero rastro contra producción (forward en transacción y round-trip forward+down, ambas abortadas con excepción deliberada y revertidas). Read-back: tabla de 14 columnas, una política `is_admin()` (`admins_all_registro_ajustes`, ALL), cero permisos a `anon`, 6 índices (pkey + 4 de consulta + el índice único parcial que impide revertir dos veces), 4 CHECK y 5 FK. El CHECK de `tipo` se amplió en la misma sesión a `condonacion | cesion | pago_tercero | reversa` con la tabla aún vacía, y se releyó.
-- [ ] 3.2 `src/lib/ajustes.ts` pura (cargo objetivo o FIFO) testeada antes de usarse
-- [ ] 3.3 Módulo de UI: condonación, cesión, pago a tercero y reversa auditada
-- [ ] 3.4 Guardia "naturaleza del cobro" en el formulario de Pagos
-- [ ] 3.5 Reporte "Ajustes otorgados" + indicador "Posición neta"
-- [ ] 3.6 Refinamiento (a decidir): cobrar a un ex miembro con saldo pendiente.
+  - Evidencia: `phase11_registro_ajustes.sql` + `_down`; dos pruebas de cero rastro contra producción (forward en transacción y round-trip forward+down, ambas abortadas con excepción deliberada y revertidas). Read-back: tabla de 14 columnas, una política `is_admin()` (`admins_all_registro_ajustes`, ALL), cero permisos a `anon`, 6 índices (pkey + 4 de consulta + el índice único parcial que impide revertir dos veces), 4 CHECK y 5 FK. El CHECK de `tipo` se amplió en la misma sesión a `condonacion | cesion | pago_tercero | reversa` con la tabla aún vacía, y se releyó. Commit `b29aafd`.
+- [x] 3.2 `src/lib/ajustes.ts` pura (cargo objetivo o FIFO) testeada antes de usarse
+  - Evidencia: RED→GREEN, 30 pruebas; `planAjuste` delega en `allocateFifo` y `planReversa` deriva la restauración del propio delta de cada fila. Commits `ab68886`, `9ef9f4c`.
+- [x] 3.3 Escritor único (`src/features/ajustes/repo.ts`) con cesión pareada y reversa auditada
+  - Evidencia: 12 pruebas (9 puras + 2 guardas de fuente + la cesión a sí mismo); el libro se escribe antes de mutar cargos y cada escritura multi-fila es una sola sentencia; nunca toca `registro_pagos`. Commits `d7b1321`, `9ef9f4c`.
+- [x] 3.4 Módulo de UI: condonación, cesión, pago a tercero y reversa auditada
+  - Evidencia: `src/features/ajustes/index.ts` + nav + `index.html`; **la comprobación en navegador NO se ejecutó** (no hay sesión viva aquí). Commits `9aaca87`, `9ef9f4c`.
+- [x] 3.5 Guardia "naturaleza del cobro" en el formulario de Pagos — evidencia: el camino de `'ajuste'`/vacío retorna antes de toda lectura o escritura; sólo existe un sitio que inserta en `registro_pagos` (`aplicarPago`). Commit `47f2528`.
+- [x] 3.6 Reporte "Ajustes otorgados" + indicador "Posición neta" fuera del balance — evidencia: `sumAjustesOtorgados`/`netPositionCents`; `computeCaja` intacto. Commit `47f2528`.
+- [ ] 3.7 Refinamiento (a decidir): cobrar a un ex miembro con saldo pendiente (tarea 4.1 de `tasks.md`).
+
+**Pendiente real de E2 (no bloquea, exige navegador o base viva):** preview y guardado del formulario, prompt/confirm de la reversa, render de las tarjetas del Arca y de la tabla de ajustes del historial, la igualdad de totales tras una cesión real, la restauración al centavo tras una reversa real y la fila "ya revertido" en la lista de recientes (ésta última sólo mira las últimas 50 filas; el escritor y el índice único rechazan la doble reversa aunque la UI no la marque). La evidencia de `tasks.md` 2.3 es **parcial**: la "prueba de que el escritor no inserta en `registro_pagos`" es una aserción sobre el TEXTO de la fuente, no una ejecución del escritor.
 
 **Forma del libro (D5/D7), congelada para la implementación:** una fila por cargo afectado; `monto` es el delta CON SIGNO aplicado a `cargos.monto_pendiente`; `pendiente_resultante` es el valor que la fila dejó y es lo que hace la reversa demostrable; `grupo_id` une las filas de una acción; `grupo_revertido` nombra el grupo que una fila `reversa` corrige. Una cesión son dos filas más un cargo nuevo para el receptor. `pago_tercero` tiene la misma forma que la condonación (reduce el cargo, no entra efectivo al arca, contraparte nula): un tercero pagó por el miembro.
 

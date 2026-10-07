@@ -2,7 +2,7 @@
 
 Read this file first in any new session working on this project. It is a thin pointer to the canonical documentation, not a copy of it — the files it points to are the source of truth; this file is a map.
 
-## Start here if you are resuming (2026-10-04 session)
+## Start here if you are resuming (2026-10-06 session — E2)
 
 **Branch**: `docs/reparacion-y-ajustes-arca`, **nothing pushed** — delivery is the operator's call. The working tree is clean. The authoritative commit list is `git log --oneline origin/main..HEAD`; the table below names the commits that matter and does not try to be exhaustive.
 
@@ -15,6 +15,12 @@ Read this file first in any new session working on this project. It is a thin po
 | `9b3cf74` | **phase 10 applied** — concept catalog, selector, surfaces |
 | `8dfe19c` | catalog/authority record |
 | `383e521` | concept filter and concept management UI |
+| `b29aafd` | **phase 11 applied** — the adjustments ledger |
+| `ab68886` | the pure adjustment planner and reporting figures |
+| `d7b1321` | the adjustments single writer and its read surfaces |
+| `9aaca87` | the adjustments capture UI and its navigation |
+| `47f2528` | the pago natureza guard, the Arca report cards, the member-history adjustments |
+| `9ef9f4c` | review follow-ups: one allocator, harder reversal refusals |
 
 
 
@@ -28,7 +34,7 @@ Read this file first in any new session working on this project. It is a thin po
 
 **Next steps, in order.**
 
-1. **E2 — the adjustments module**, the missing primitive. Read `ajustes-y-clasificacion/design.md` D1–D11 BEFORE writing anything: D5 and D7 now fix the ledger shape (one row per affected cargo, tied by a `grupo_id`; a cession creating a second cargo for the receiver; a reversal that restores each row's own delta and refuses to run on drift), and `tasks.md` sections 2–4 are the work. Apply `phase11` exactly the way phase 9 and phase 10 were applied.
+1. **E2 — DONE, pending only the browser/DB checks above.** `phase11` is applied and the module, the writer, the guard and the reports are implemented and committed. Read `ajustes-y-clasificacion/design.md` D1–D11 before changing the ledger shape: D5 and D7 fix it (one row per affected cargo tied by a `grupo_id`; a cession creating a second cargo for the receiver; a reversal that restores each row's own delta and refuses to run on drift). What remains is the operator's manual pass, not more code.
 2. **The operator's 66-row concept backfill** plus the five browser checks above. The backfill needs a `rodada` concept created first, and two of the ten "alta" proposals are already known to be wrong — the list is leads, not classifications.
 3. **Task 2.3 of `reparacion-rodada-san-luis`**: the retirement warning is a SPEC requirement that is **unmet** (the retire flow says nothing about the receivable disappearing). That change cannot be archived until it lands or the requirement is withdrawn.
 4. **The open decision** on whether a retired member's balance should stop vanishing from "Por cobrar" (design.md D8, three options).
@@ -62,6 +68,14 @@ Two new SDD changes were planned; the first one is **already applied live**. Bot
 - **Ordering constraint that will bite if ignored**: the app code that embeds `catalogo_conceptos` (the pago form's debt list and the admin member history) fails at query time until `phase10` is applied AND PostgREST has refreshed its schema cache. Code and migration must land together, and the migration is already applied — so a build of this branch is safe, but a build of the *code* before the migration would not have been.
 - **The six concepts shipped pre-seeded**: support to accident victims, support for a fallen brother, legal support and anniversary support as `recuperable`; chapter acquisitions and donations as `no_recuperable`. The nature rule is what makes misclassification impossible: a modality that creates debts only offers recoverable concepts, and the "sin cargos" modality only offers non-recoverable ones. The `concepto_id` foreign keys are plain `references` (ON DELETE NO ACTION), which is the database half of "deactivated, never deleted".
 - **63 `registro_apoyos` and 3 `registro_egresos` rows remain UNCLASSIFIED on purpose.** `supabase/sql/phase10_backfill_propuestas.sql` is a READ-ONLY query that proposes a concept per row; the operator approves or corrects each proposal before any UPDATE runs. Measured 2026-10-04: 66 rows, 10 proposals marked `alta` and 56 `baja` (51 with no proposal) — and **at least two of the `alta` ones are demonstrably wrong** (a death-support row matched the word "capítulo"; a mixed expense row matched "accidente"). The proposal list is leads, not classifications. Also note the six seeded concepts do not cover a trip ("rodada"), so the operator will need to add one; the catalog supports creating a concept in-line from the capture form.
+
+**`ajustes-y-clasificacion` E2 — APPLIED and IMPLEMENTED 2026-10-06.** `phase11_registro_ajustes.sql` (+ `_down`) was applied live with the same zero-trace discipline as phase 9/10: the forward run inside a transaction and a forward+down round-trip, both aborted with a deliberate in-transaction exception and rolled back with an identical read-back. Read-back after applying: 14 columns, one `is_admin()` policy (`admins_all_registro_ajustes`, ALL), zero `anon` grants, 6 indexes (including the partial unique index that makes a second reversal of the same group impossible), 4 CHECK constraints and 5 foreign keys. The `tipo` CHECK was widened to `condonacion | cesion | pago_tercero | reversa` in the same session while the table was empty (design.md D5 models only the first two, but tasks 2.5 and the proposal require the direct payment to a third party; its shape is the condonación's) and production was re-read back to match the file.
+
+The code is `src/lib/ajustes.ts` (pure planner + the reporting figures), `src/features/ajustes/repo.ts` (the single writer), `src/features/ajustes/index.ts` (the capture module), plus the pago natureza guard, the Arca report cards and the member-history adjustments. **Verified**: 264/264 `vitest`, `tsc --noEmit` clean, `npm run build` + `postbuild` guard clean, and a build with the Vite env vars present confirmed E2 reaches the bundle (without them Vite folds `import.meta.env` to `undefined`, the app throws at module load and Rollup drops it — a pre-existing property of the build, not an E2 defect). An independent verification pass reported **no blocker attributable to E2**.
+
+**Deliberate deviations, all declared rather than hidden.** (a) `supabase-js` has no multi-statement transaction, so the writer keeps every multi-row write inside ONE statement and writes the ledger before mutating cargos; the only exception is a cession's receiver cargo, whose foreign key forces it to exist first — a partial failure is therefore visible in the ledger instead of silent. (b) Task 2.3's literal evidence ("a test asserting the writer inserts no `registro_pagos` row") is only met by a SOURCE assertion, not by running the writer; that is recorded as a gap, not as done. (c) The "Ajustes otorgados" figure is all-time: no period model exists (the year filter is a deferred decision), so "in the period" reads as "since the beginning" until that model lands.
+
+**Still browser-only, and therefore still UNCHECKED in `tasks.md`**: the form preview and save, the reversal prompt/confirm, the Arca cards and net position, the member-history table, and the DB-level invariants of a real cession and a real reversal. The repository has no DOM test harness and this environment has no live session, so those are the operator's checks — exactly like tasks 1.3/1.4/1.5/1.7/1.8 of the same change.
 
 **Open review authority — do not lose it, and do not disable it by accident.** A native review lineage for the phase 9 repair sits in `correction_required` with **severe, candidate-caused findings that were never readable**: `review-2e048525c6b9d857` (target `sha256:1d2d0b96…`, 15 paths, 1,479 lines, one `review-reliability` lens, correction budget 200 diff lines). The correction route stayed blocked because the untracked-file inventory drifted mid-review — a delegated writer finished while the review was frozen — and every offered selection declaration was rejected. **Nothing was abandoned, disabled, or repaired**: the lineage is intact and untouched, and no authority was burned by the failed attempts (`mutation_performed: false`).
 
