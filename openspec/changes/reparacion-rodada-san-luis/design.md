@@ -38,7 +38,7 @@ The cargo that landed on the wrong member is moved by updating `cargos.miembro_i
 
 ### D7 — Redaction of real figures
 
-This repository is public. No real amounts, per-member balances, or resulting arca figures appear in any committed artifact of this change. The reviewed values live in private project memory (Engram obs #4498); the SQL derives its numbers from the database; the verification during apply reads them back and reports them to the operator in session. The rule is restated here deliberately — a later amendment to these documents can silently reintroduce figures otherwise.
+This repository is public, so the club's financial position is never published here. The rule, stated precisely rather than optimistically: the FORWARD migration hard-codes no monetary value (it reads the rows it deletes and reconstructs the rest); the `_down.sql` carries the four historical amounts, because a reversible re-insert cannot avoid them and `phase8` set that precedent; and everything else — the per-member balances, the resulting arca, the reconstructed restoration values — lives in private project memory (Engram obs #4498) and is read back from the database during apply, reported to the operator in session. An earlier draft of this decision claimed no amount appeared anywhere; that was false for the down migration, and the distinction is written out here because a later amendment to these documents can silently reintroduce figures otherwise.
 
 ### D8 — Retiring a member who still owes
 
