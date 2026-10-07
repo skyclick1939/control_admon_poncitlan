@@ -1,3 +1,4 @@
+import type { AjusteTipo } from './ajustes';
 import type { Concepto } from './conceptos';
 
 /**
@@ -189,4 +190,22 @@ export interface MemberViewResponse {
     pendienteCents: number;
   }[]; // fecha desc
   pagos: { fecha: string; montoCents: number }[]; // fecha desc
+}
+
+/** Row of `public.registro_ajustes` (design.md D5/D7). `monto` is the SIGNED delta applied to `cargos.monto_pendiente`; `pendiente_resultante` is the value the row left. */
+export interface RegistroAjuste {
+  id: string;
+  grupo_id: string;
+  tipo: AjusteTipo;
+  miembro_id: string;
+  cargo_id: string | null;
+  monto: number;
+  pendiente_resultante: number | null;
+  concepto_id: string | null;
+  contraparte_miembro_id: string | null;
+  observaciones: string | null;
+  registrado_por: string | null;
+  nombre_registrador: string;
+  grupo_revertido: string | null;
+  created_at: string;
 }
