@@ -14,6 +14,13 @@ export interface EgresoInput {
   motivo: string;
   /** Decimal MXN pesos; stored as `monto` (matching `registro_pagos.monto_pagado`). */
   montoPesos: number;
+  /**
+   * `catalogo_conceptos.id`. REQUIRED: a new egreso must carry a concept
+   * (design.md D3), and the Apoyos "sin cargos" review only offers
+   * `no_recuperable` ones (D2). `registro_egresos.concepto_id` stays nullable
+   * so a row recorded before the catalog existed reads as `null` (D3).
+   */
+  conceptoId: string;
   /** `miembros.id` the disbursement is attributed to, or `null` for an un-attributed expense. */
   beneficiarioId: string | null;
   /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion. */
@@ -32,6 +39,7 @@ export async function saveEgreso(input: EgresoInput): Promise<void> {
     fecha: input.fecha,
     motivo: input.motivo,
     monto: input.montoPesos,
+    concepto_id: input.conceptoId,
     beneficiario_id: input.beneficiarioId,
     nombre_beneficiario: input.nombreBeneficiario,
   });

@@ -81,15 +81,16 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
       cargos.length === 0
         ? `<tr><td colspan="3" class="text-green-500 text-center py-4">¡Este miembro no tiene adeudos!</td></tr>`
         : cargos
-            .map(
-              (cargo) => `
+            .map((cargo) => {
+              const conceptoNombre = cargo.registro_apoyos.catalogo_conceptos?.nombre ?? '';
+              return `
           <tr>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(cargo.registro_apoyos.motivo)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(cargo.registro_apoyos.motivo)}${conceptoNombre ? `<span class="block text-xs text-gray-400">${escapeHtml(conceptoNombre)}</span>` : ''}</td>
             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${new Date(cargo.registro_apoyos.fecha).toLocaleDateString()}</td>
             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">$${toPesos(toCents(cargo.monto_pendiente)).toFixed(2)}</td>
           </tr>
-        `,
-            )
+        `;
+            })
             .join('');
 
     pagoInfoDisplay.classList.remove('view-hidden');

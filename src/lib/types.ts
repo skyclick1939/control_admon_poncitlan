@@ -1,3 +1,14 @@
+import type { Concepto } from './conceptos';
+
+/**
+ * The `catalogo_conceptos` embed as PostgREST returns it on a movement
+ * (`catalogo_conceptos(nombre)`): a to-one relation, so an object or `null`
+ * when the movement carries no concept. Only the display name is ever selected
+ * into a read surface — the nature and the slug drive the capture selector,
+ * not the listings.
+ */
+export type ConceptoRef = Pick<Concepto, 'nombre'>;
+
 export interface Miembro {
   id: string;
   nickname: string;
@@ -32,6 +43,12 @@ export interface RegistroApoyo {
   motivo: string;
   monto_total: number;
   tipo_division: 'INDIVIDUAL' | 'FULLPARCH' | 'TODOS';
+  /**
+   * `catalogo_conceptos.id`, or `null` for a row recorded before the catalog
+   * existed (design.md D3). `null` means exactly that — the guided backfill
+   * (D4) proposes a value and the operator approves it; nothing is guessed.
+   */
+  concepto_id: string | null;
   created_at: string;
 }
 
@@ -62,12 +79,17 @@ export interface RegistroEgreso {
   beneficiario_id: string | null;
   /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion (mirrors `nombre_capturador`). */
   nombre_beneficiario: string | null;
+  /** `catalogo_conceptos.id`, or `null` for a row recorded before the catalog existed (design.md D3). */
+  concepto_id: string | null;
   created_at: string;
 }
 
 /** `cargos` joined with its parent `registro_apoyos`, for the pagos debt breakdown view. */
 export interface CargoConApoyo extends Pick<Cargo, 'id' | 'monto_pendiente'> {
-  registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'>;
+  registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'> & {
+    /** Nested FK embed; `null` on a pre-catalog row. The motive is never replaced by it (design.md D10). */
+    catalogo_conceptos: ConceptoRef | null;
+  };
 }
 
 /** `cargos` joined with its `miembros` nickname, for the dashboard debtor ranking. */
@@ -81,7 +103,9 @@ export interface CargoConMiembro extends Pick<Cargo, 'miembro_id' | 'monto_pendi
  *  join may not resolve. */
 export interface CargoHistorial
   extends Pick<Cargo, 'id' | 'monto_original' | 'monto_pendiente' | 'estado' | 'created_at'> {
-  registro_apoyos: Pick<RegistroApoyo, 'motivo' | 'fecha'> | null;
+  registro_apoyos:
+    | (Pick<RegistroApoyo, 'motivo' | 'fecha'> & { catalogo_conceptos: ConceptoRef | null })
+    | null;
 }
 
 /** Row of `public.app_admins` (design.md Database Design — Phase 2). */

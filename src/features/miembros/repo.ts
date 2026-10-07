@@ -55,7 +55,11 @@ export async function deleteMember(id: string): Promise<void> {
 export async function fetchCargosMiembro(miembroId: string): Promise<CargoHistorial[]> {
   const { data, error } = await dbClient
     .from('cargos')
-    .select('id, monto_original, monto_pendiente, estado, created_at, registro_apoyos(motivo, fecha)')
+    // `catalogo_conceptos(nombre)` is the FK embed of the concept; it renders
+    // next to `motivo`, which is never replaced (design.md D10).
+    .select(
+      'id, monto_original, monto_pendiente, estado, created_at, registro_apoyos(motivo, fecha, catalogo_conceptos(nombre))',
+    )
     .eq('miembro_id', miembroId)
     .order('created_at', { ascending: false });
   if (error) throw error;

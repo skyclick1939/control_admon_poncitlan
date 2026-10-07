@@ -6,7 +6,9 @@ import type { CargoConApoyo } from '../../lib/types';
 export async function fetchCargosPendientes(miembroId: string): Promise<CargoConApoyo[]> {
   const { data, error } = await dbClient
     .from('cargos')
-    .select('*, registro_apoyos(motivo, fecha)')
+    // The concept name travels with the motive via FK embedding (design.md D10:
+    // the concept is shown BESIDE the prose, never instead of it).
+    .select('*, registro_apoyos(motivo, fecha, catalogo_conceptos(nombre))')
     .eq('miembro_id', miembroId)
     .eq('estado', 'pendiente')
     .order('created_at', { ascending: true });

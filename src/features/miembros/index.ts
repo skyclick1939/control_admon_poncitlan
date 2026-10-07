@@ -68,13 +68,16 @@ export function initMiembros(app: App): void {
   function renderCargoHistoryRow(cargo: CargoHistorial): string {
     const fecha = cargo.registro_apoyos?.fecha ?? cargo.created_at;
     const motivo = cargo.registro_apoyos?.motivo ?? '—';
+    // The concept renders beside the motive, never replacing it (design.md D10);
+    // a pre-catalog row shows no concept rather than an invented one.
+    const conceptoNombre = cargo.registro_apoyos?.catalogo_conceptos?.nombre ?? '';
     const estadoLabel = cargo.estado === 'pagado' ? 'Pagado' : 'Pendiente';
     const estadoClass = cargo.estado === 'pagado' ? 'text-green-600' : 'text-red-600';
 
     return `
         <tr>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${new Date(fecha).toLocaleDateString()}</td>
-          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${escapeHtml(motivo)}</td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${escapeHtml(motivo)}${conceptoNombre ? `<span class="block text-xs text-gray-400">${escapeHtml(conceptoNombre)}</span>` : ''}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">$${toPesos(toCents(cargo.monto_original)).toFixed(2)}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">$${toPesos(toCents(cargo.monto_pendiente)).toFixed(2)}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm ${estadoClass}">${estadoLabel}</td>
