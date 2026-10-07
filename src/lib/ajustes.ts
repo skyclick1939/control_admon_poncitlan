@@ -6,6 +6,7 @@
  * to guess. Every function is PURE — no I/O, integer cents only.
  */
 
+import { allocateFifo } from './money';
 import type { Cents, Charge } from './money';
 
 /**
@@ -59,32 +60,26 @@ export function planAjuste(
   }
 
   const targeted = targetCargoId !== undefined && targetCargoId !== null;
-  let remainingCents = amountCents;
-  const rows: AjustePlanRow[] = [];
+  // ONE allocation authority for the whole app: a payment and an adjustment
+  // both reduce cargos through `allocateFifo`, so a forgiven cent behaves like a
+  // paid cent by construction rather than by a second implementation that could
+  // drift. Non-positive pendings are dropped first because a row exists only
+  // because something moved, and that also keeps `allocateFifo` from emitting a
+  // zero-applied row.
+  const elegibles = cargos.filter(
+    (cargo) => cargo.pendingCents > 0 && (!targeted || cargo.id === targetCargoId),
+  );
 
-  for (const cargo of cargos) {
-    if (remainingCents <= 0) break;
-    if (targeted && cargo.id !== targetCargoId) continue;
-    if (cargo.pendingCents <= 0) continue;
+  const { allocations, unappliedCents } = allocateFifo(amountCents, elegibles);
 
-    const appliedCents = Math.min(remainingCents, cargo.pendingCents);
-    const newPendingCents = cargo.pendingCents - appliedCents;
+  const rows: AjustePlanRow[] = allocations.map((allocation) => ({
+    cargoId: allocation.chargeId,
+    deltaCents: -allocation.appliedCents,
+    newPendingCents: allocation.remainingCents,
+    settled: allocation.settled,
+  }));
 
-    rows.push({
-      cargoId: cargo.id,
-      deltaCents: -appliedCents,
-      newPendingCents,
-      settled: newPendingCents === 0,
-    });
-
-    remainingCents -= appliedCents;
-  }
-
-  return {
-    rows,
-    appliedCents: amountCents - remainingCents,
-    unappliedCents: remainingCents,
-  };
+  return { rows, appliedCents: amountCents - unappliedCents, unappliedCents };
 }
 
 /** One row of the original adjustment group, as stored in public.registro_ajustes. */

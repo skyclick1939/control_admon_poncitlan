@@ -16,6 +16,7 @@
 
 import { planAjuste, planReversa } from '../../lib/ajustes';
 import type { AjusteOriginalRow, AjustePlan, AjusteReporteRow, AjusteTipo } from '../../lib/ajustes';
+import type { Concepto } from '../../lib/conceptos';
 import { toCents, toPesos } from '../../lib/money';
 import type { Cents, Charge } from '../../lib/money';
 import { dbClient } from '../../lib/supabase';
@@ -158,6 +159,42 @@ interface CargoPendienteFila {
   apoyo_id: string | null;
   monto_original: number;
   monto_pendiente: number;
+}
+
+/**
+ * The concept catalog, read here because no feature may import another: the
+ * Apoyos feature owns the catalog's writers, and this is the read the
+ * adjustments selector and the report need. Read-only, same columns.
+ */
+export async function fetchConceptos(): Promise<Concepto[]> {
+  const { data, error } = await dbClient
+    .from('catalogo_conceptos')
+    .select('id, slug, nombre, naturaleza, activo')
+    .order('nombre', { ascending: true });
+  if (error) throw error;
+  return data as Concepto[];
+}
+
+/** A pending cargo as the adjustments form presents it, with the motive it came from. */
+export interface CargoAjustable {
+  id: string;
+  apoyo_id: string | null;
+  monto_original: number;
+  monto_pendiente: number;
+  created_at: string;
+  registro_apoyos: { motivo: string; fecha: string } | null;
+}
+
+/** One member's pending cargos, oldest first — the order every allocation follows. */
+export async function fetchCargosAjustables(miembroId: string): Promise<CargoAjustable[]> {
+  const { data, error } = await dbClient
+    .from('cargos')
+    .select('id, apoyo_id, monto_original, monto_pendiente, created_at, registro_apoyos(motivo, fecha)')
+    .eq('miembro_id', miembroId)
+    .eq('estado', 'pendiente')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data as unknown as CargoAjustable[];
 }
 
 export interface AjusteRegistro {
@@ -378,6 +415,14 @@ export async function revertirAjuste(
     throw new Error('Este grupo ya fue revertido: no se puede revertir dos veces.');
   }
 
+  // A non-reversal row always recorded the cargo it changed and the value it
+  // left. If that pointer is gone (`cargo_id` is `on delete set null`), the
+  // counterfactual cannot be verified, so refuse rather than silently skip the
+  // row and report a partial restoration as a full one.
+  if (grupo.some((row) => row.tipo !== 'reversa' && row.cargo_id === null)) {
+    throw new Error('No se puede revertir: el cargo que registró el ajuste ya no existe.');
+  }
+
   const cargoIds = [...new Set(grupo.map((row) => row.cargo_id).filter((id): id is string => id !== null))];
 
   const actuales = new Map<string, Cents>();
@@ -447,8 +492,12 @@ export async function revertirAjuste(
   const { error: insertReversaError } = await dbClient.from('registro_ajustes').insert(reversaRows);
   if (insertReversaError) throw insertReversaError;
 
-  for (const row of aEliminar) {
-    const { error: deleteError } = await dbClient.from('cargos').delete().eq('id', row.cargoId);
+  if (aEliminar.length > 0) {
+    // ONE statement, like every other multi-row write here.
+    const { error: deleteError } = await dbClient
+      .from('cargos')
+      .delete()
+      .in('id', aEliminar.map((row) => row.cargoId));
     if (deleteError) throw deleteError;
   }
 

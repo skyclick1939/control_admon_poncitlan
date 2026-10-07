@@ -10,7 +10,7 @@ The system MUST store every debt reduction that is not a cash inflow in a dedica
 
 - GIVEN a member with a pending debt
 - WHEN an administrator records a forgiveness
-- THEN exactly one `registro_ajustes` row is inserted
+- THEN one `registro_ajustes` row is inserted per affected cargo, all tied to a single `grupo_id`
 - AND no `registro_pagos` row is inserted
 
 #### Scenario: The ledger has a single writer
