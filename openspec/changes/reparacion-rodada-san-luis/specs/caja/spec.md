@@ -4,7 +4,7 @@
 
 ### Requirement: The Ledger Records Cash Only
 
-Every `registro_pagos` row MUST represent money that actually entered the arca. A debt reduction that moves no money — a waiver, a forgiveness, a contribution made directly to a third party, or a reassignment between members — MUST NOT be recorded as a `registro_pagos` row, because that ledger is an inflow term of the derived arca. Such a reduction MUST be recorded in the adjustments ledger instead, which the arca formula MUST NOT read.
+Every `registro_pagos` row MUST represent money that actually entered the arca. Enforcement at capture time is the "nature of the collection" guard owned by the sibling change `ajustes-y-clasificacion`; this change states the rule and does NOT detect non-cash rows automatically, which is exactly why the audit of the existing ones stays an open risk. A debt reduction that moves no money — a waiver, a forgiveness, a contribution made directly to a third party, or a reassignment between members — MUST NOT be recorded as a `registro_pagos` row, because that ledger is an inflow term of the derived arca. Such a reduction MUST be recorded in the adjustments ledger instead, which the arca formula MUST NOT read.
 
 #### Scenario: A debt reduction without cash is not a pago
 
@@ -20,17 +20,10 @@ Every `registro_pagos` row MUST represent money that actually entered the arca. 
 - THEN that row MUST NOT be counted as cash-in
 - AND the balance MUST be derived only from rows that represent real inflows
 
-### Requirement: Direct Reassignment Is Not Cash
-
-When one member's obligation is reassigned to another member, the club's total receivable MUST be unchanged and the arca MUST be unchanged. The reassignment MUST be expressed against the members' cargos, never as a payment by either member.
-
-#### Scenario: Reassigning an obligation leaves the totals intact
-
-- GIVEN member A's obligation is reassigned to member B
-- WHEN the reassignment is recorded
-- THEN `cargos` reflects the new debtor
-- AND the total receivable is unchanged
-- AND the derived arca is unchanged
+<!-- "Direct reassignment is not cash" is deliberately NOT stated here. It is owned
+     by the `ajustes-adeudo` delta of the sibling change `ajustes-y-clasificacion`,
+     which is where the ledger that implements it lands. A requirement this change's
+     code cannot satisfy would block archiving this one. -->
 
 ## MODIFIED Requirements
 

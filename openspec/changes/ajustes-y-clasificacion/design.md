@@ -28,7 +28,11 @@ The backfill maps existing rows by keyword over `motivo` and produces a **review
 
 ### D5 — Reassignment is paired by construction
 
-A `cesion` writes two effects in one transaction: the ceding member's obligation decreases and the receiving member's increases by the same amount, against the same `apoyo_id` when a cargo is targeted. Both effects are recorded on the adjustment row (`miembro_id` + `contraparte_miembro_id`). The club's total receivable and the arca are unchanged by definition. Modelling this as "A paid and B owes more" would require inventing a cash row — the exact anti-pattern.
+The ledger MUST record a FACT ABOUT ONE CARGO per row: `cargo_id` plus the signed amount that row moved on it, tied to the other rows of the same operator action by a `grupo_id`. A condonación is one row. A cesión is TWO rows sharing a `grupo_id`: the ceding member's cargo loses the amount, and a NEW cargo is created for the receiving member against the same `apoyo_id` (`monto_original` = `monto_pendiente` = the ceded amount), which the second row references.
+
+*Rejected:* one row per action carrying `miembro_id`, `contraparte_miembro_id` and a single amount. It reads better, but it cannot answer "what exactly did this row change?", so an exact reversal would have to RE-RUN the planner from the same inputs and trust it to be deterministic — and any later rule or schema change silently breaks old reversals. One extra row per cession buys a reversal that is mechanical, auditable row by row, and immune to the planner changing.
+
+The club's total receivable and the arca are unchanged by a cession by construction: one cargo loses exactly what another gains. Modelling a cession as "A paid and B owes more" would require inventing a cash row — the anti-pattern this whole change exists to eliminate.
 
 ### D6 — Visibility: the report card and the net position
 
@@ -39,7 +43,7 @@ Two additions, both deliberately outside the balance:
 
 ### D7 — Reversal, not deletion
 
-An adjustment is never deleted. A mistake is corrected by a `reversa` row that references the original, restores the cargo values it changed, and records who did it and why. This is the operational answer to "the next correction should not need SQL": the 2026-10-04 repair used a migration because the application had no such path.
+An adjustment is never deleted. A mistake is corrected by a `reversa` row that references the original GROUP, and the reversal is EXACT because every original row already states its own cargo and its own delta: restoring `+monto` on each referenced cargo returns it to the value it had, `estado` included. A reversed cession additionally removes the cargo the cession created — that cargo exists only because of the cession and has no history of its own. The reversal records who did it and why, and it MUST refuse to run when a referenced cargo's current value no longer matches what the original row changed: the counterfactual is meant to be provable, not plausible. This is the operational answer to "the next correction should not need SQL": the 2026-10-04 repair used a migration because the application had no such path.
 
 ### D8 — Guard on the pago form
 

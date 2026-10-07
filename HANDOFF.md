@@ -2,6 +2,38 @@
 
 Read this file first in any new session working on this project. It is a thin pointer to the canonical documentation, not a copy of it — the files it points to are the source of truth; this file is a map.
 
+## Start here if you are resuming (2026-10-04 session)
+
+**Branch**: `docs/reparacion-y-ajustes-arca`, 8 commits, **nothing pushed** — delivery is the operator's call. The working tree is clean.
+
+| Commit | What it is |
+|---|---|
+| `b512671` | OpenSpec plan for both changes |
+| `8e7c755` | **phase 9 applied** — the ledger repair |
+| `583867e` | HANDOFF record of the repair and the retirement |
+| `b28a0b5` | the redaction rule corrected |
+| `9b3cf74` | **phase 10 applied** — concept catalog, selector, surfaces |
+| `8dfe19c` | catalog/authority record |
+| `383e521` | concept filter and concept management UI |
+
+(One commit is missing from that table because it is a two-line doc correction; trust `git log` over this table.)
+
+**Applied live, each proven with a zero-trace run before applying and each `_down` proven by a rolled-back round-trip**: `phase9_reparar_rodada_san_luis` and `phase10_catalogo_conceptos`. Note the asymmetry: `phase9_..._down.sql` exists and is proven but is **NOT** applied, and `phase10_..._down.sql` likewise. **Ordering constraint that bites**: the app embeds `catalogo_conceptos` in the pago and member-history queries, so a build of this code fails at query time without phase 10 — it is already applied, and PostgREST must have refreshed its schema cache.
+
+**Verified vs not verified, without flattery.** Verified: 222/222 `vitest`, `tsc` clean, both migrations' zero-trace proofs, the post-apply read-backs, and 46 cargos + the full pending balance of the retired member still intact. NOT verified: every UI behaviour of the catalog — selector search, in-line concept creation, concept display in pagos and history, the concept filter, and the management panel — plus the live `activo` update. Those are five browser checks only the operator can run; they are tasks 1.3, 1.4, 1.5, 1.7 and 1.8 of `ajustes-y-clasificacion/tasks.md`.
+
+**Native review: do NOT re-attempt it as one branch-wide candidate.** Three attempts happened. The phase-9-only candidate created lineage `review-2e048525c6b9d857`, which sits in `correction_required` with **severe, candidate-caused findings that could never be read** — its correction route was blocked when a delegated writer's newer files drifted the untracked inventory. Two branch-wide candidates (2,498 and 2,786 lines) were then **declined at the consent gate**: `consent-declined-this-candidate`, no lineage created, nothing mutated, nothing burned. Net effect: **this branch has no independent reviewer verdict**, and that is a known, recorded state rather than an oversight. If a verdict is ever wanted: inspect the paused lineage with the native CLI (`gentle-ai review status --contract gentle-ai.review-integration/v2 --next-transition --lineage review-2e048525c6b9d857`), or split the work into per-work-unit candidates with a narrow `baseRef` — or disable the switch for this clone (`gentle-ai review mode disable --scope clone`) and let ordinary policy decide.
+
+**Next steps, in order.**
+
+1. **E2 — the adjustments module**, the missing primitive. Read `ajustes-y-clasificacion/design.md` D1–D11 BEFORE writing anything: D5 and D7 now fix the ledger shape (one row per affected cargo, tied by a `grupo_id`; a cession creating a second cargo for the receiver; a reversal that restores each row's own delta and refuses to run on drift), and `tasks.md` sections 2–4 are the work. Apply `phase11` exactly the way phase 9 and phase 10 were applied.
+2. **The operator's 66-row concept backfill** plus the five browser checks above. The backfill needs a `rodada` concept created first, and two of the ten "alta" proposals are already known to be wrong — the list is leads, not classifications.
+3. **Task 2.3 of `reparacion-rodada-san-luis`**: the retirement warning is a SPEC requirement that is **unmet** (the retire flow says nothing about the receivable disappearing). That change cannot be archived until it lands or the requirement is withdrawn.
+4. **The open decision** on whether a retired member's balance should stop vanishing from "Por cobrar" (design.md D8, three options).
+5. **Parked, not forgotten**: the audit of the non-cash `registro_pagos` class — the most valuable unfinished work on the money tables, evidence in `reparacion-rodada-san-luis/design.md` D10.
+
+**Five pitfalls, every one of them already paid for.** (a) Never wrap a file that contains its own `begin;`/`commit;` inside another transaction to "test" it — the inner `commit;` commits for real; strip them and supply your own. (b) Never launch a writer while a native review is frozen: its new files drift the untracked inventory and block the correction route. (c) Run `git fetch` before inspecting a candidate; a stale `origin/main` inflated one candidate from 15 to 33 paths and tripped the lens context budget. (d) This repository is PUBLIC: no balances, no per-member totals, no derived figures — only the amounts a reversible `_down` cannot avoid. (e) The Supabase Management token lives in Engram (topic `config/control-admon-poncitlan-access`, obs #2882) and the project is SHARED: every script is strictly scoped to this app's own tables and additive.
+
 ## What this project is
 
 A club/organization expense-tracking app ("Control de Gastos Poncitlán"), being migrated to Vite + TypeScript (see below), live on Vercel, backed by a Supabase Postgres project named "arca" (ref `qjswicjxwsbwnxrrowsi`) that is **shared** with an unrelated system (a different, separate "arca" national-chapters project, still in approval — never touch its tables, listed by name in the Facts section below).
@@ -197,7 +229,7 @@ All coding and live-SQL work for this entire change is done (36/38 tasks). The o
 
 Verified and archived in commit `4c4a8f3`; nothing is pending. Recorded here so a future session does not re-open it:
 
-- **V.3 (negative-balance rendering) was EXERCISED DELIBERATELY against production — not merely code-inspected.** Because the Arca is positive in normal operation, the negative path is unreachable without a temporary opening: `configuracion_caja.monto_apertura` was set to a synthetic value so the derived Arca was exactly −1,000.00, and a real browser confirmed — on all THREE surfaces (admin dashboard "Arca (disponible)" KPI, admin Arca module breakdown, and public `/vista/` with no session) — that the figure rendered **red and unblocked** (never hidden, never clamped to zero, no "insufficient balance" guard). That same live pass independently confirmed two domain rules: the two outflow cards stay SEPARATE under "Salidas del arca", and "Por Cobrar" is displayed as context and NOT summed into the balance.
+- **V.3 (negative-balance rendering) was EXERCISED DELIBERATELY against production — not merely code-inspected.** Because the Arca is positive in normal operation, the negative path is unreachable without a temporary opening: `configuracion_caja.monto_apertura` was set to a synthetic value so the derived Arca was exactly at a negative figure (the value is deliberately not recorded here), and a real browser confirmed — on all THREE surfaces (admin dashboard "Arca (disponible)" KPI, admin Arca module breakdown, and public `/vista/` with no session) — that the figure rendered **red and unblocked** (never hidden, never clamped to zero, no "insufficient balance" guard). That same live pass independently confirmed two domain rules: the two outflow cards stay SEPARATE under "Salidas del arca", and "Por Cobrar" is displayed as context and NOT summed into the balance.
 - **The test was fully reversible and left ZERO trace**: only `monto_apertura` was ever written, so reverting that one column restored the row exactly — `updated_by`/`updated_at` were never touched. Confirmed by read-back. Caveat: the public endpoint's edge cache (`max-age=60` + `stale-while-revalidate=300`) can lag the revert by up to ~1 minute — documented staleness, not a defect.
 - **The gatekeeping was independent, not self-reported**: the tallies were re-counted from the spec files (19 `### Requirement:`, 36 `#### Scenario:` — exact match to the report) and `npx vitest run` was re-run by the orchestrator (13 files / 190 passed). The report on disk before this was a **stale `fail`** predating the reconciliation (`7b40509`) — that stale report is why native status had shown `verify: blocked`.
 - **One ledger `reset` was consumed** (owner-authorized; never self-authorized) — see the ledger section for the two distinct branches.

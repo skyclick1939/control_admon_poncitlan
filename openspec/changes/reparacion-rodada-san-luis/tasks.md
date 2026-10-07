@@ -44,6 +44,9 @@ Chained PRs recommended: No
 - [ ] 2.2 **Record the receivable consequence** in this file: with the member retired, their pending balance is excluded from "Por cobrar" and the public ranking (design.md D8). Confirm with the operator which option they want, and link the follow-up task in `ajustes-y-clasificacion`.
   - Evidence: the consequence is recorded in `HANDOFF.md` and in `design.md` D8; **the operator's choice between the three options is still open** (`ajustes-y-clasificacion/tasks.md` 4.1).
 
+- [ ] 2.3 **Warn at the point of retiring.** The `member-lifecycle` delta requires that an operator retiring a member with an unsettled balance be warned, there and then, that the balance will stop appearing in "Por cobrar". The app does NOT do this today: `src/features/miembros/index.ts` uses a plain confirmation that says nothing about the receivable. Until it lands, retiring a member with a balance silently hides it — which is exactly what happened on 2026-10-04. Do not archive this change while this requirement is unmet, and do not quietly delete the requirement to unblock archiving.
+  - Evidence: pending — not implemented.
+
 ## 3. Cierre
 
 - [x] 3.1 **Update `HANDOFF.md`**: the repair, the resulting state, the retirement, and the deferred non-cash audit as an open risk.
