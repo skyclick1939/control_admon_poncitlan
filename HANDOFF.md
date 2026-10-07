@@ -4,7 +4,7 @@ Read this file first in any new session working on this project. It is a thin po
 
 ## Start here if you are resuming (2026-10-04 session)
 
-**Branch**: `docs/reparacion-y-ajustes-arca`, 8 commits, **nothing pushed** — delivery is the operator's call. The working tree is clean.
+**Branch**: `docs/reparacion-y-ajustes-arca`, **nothing pushed** — delivery is the operator's call. The working tree is clean. The authoritative commit list is `git log --oneline origin/main..HEAD`; the table below names the commits that matter and does not try to be exhaustive.
 
 | Commit | What it is |
 |---|---|
@@ -16,7 +16,7 @@ Read this file first in any new session working on this project. It is a thin po
 | `8dfe19c` | catalog/authority record |
 | `383e521` | concept filter and concept management UI |
 
-(One commit is missing from that table because it is a two-line doc correction; trust `git log` over this table.)
+
 
 **Applied live, each proven with a zero-trace run before applying and each `_down` proven by a rolled-back round-trip**: `phase9_reparar_rodada_san_luis` and `phase10_catalogo_conceptos`. Note the asymmetry: `phase9_..._down.sql` exists and is proven but is **NOT** applied, and `phase10_..._down.sql` likewise. **Ordering constraint that bites**: the app embeds `catalogo_conceptos` in the pago and member-history queries, so a build of this code fails at query time without phase 10 — it is already applied, and PostgREST must have refreshed its schema cache.
 
