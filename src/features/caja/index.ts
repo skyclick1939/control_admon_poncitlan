@@ -1,8 +1,10 @@
 import type { User } from '@supabase/supabase-js';
+import { netPositionCents, sumAjustesOtorgados } from '../../lib/ajustes';
+import type { AjusteReporteRow } from '../../lib/ajustes';
 import type { CajaBreakdown } from '../../lib/caja';
 import { setText } from '../../lib/escape';
 import { formatMXN } from '../../lib/money';
-import { fetchApertura, fetchCaja, fetchPorCobrar, saveApertura } from './repo';
+import { fetchAjustesReporte, fetchApertura, fetchCaja, fetchPorCobrar, saveApertura } from './repo';
 
 export interface CajaDeps {
   getCurrentUser: () => User | null;
@@ -32,6 +34,9 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
   const cajaEgresosTotal = document.getElementById('caja-egresos-total')!;
   const cajaTotal = document.getElementById('caja-total')!;
   const cajaPorCobrar = document.getElementById('caja-por-cobrar')!;
+  const cajaAjustesTotal = document.getElementById('caja-ajustes-total')!;
+  const cajaAjustesDetalle = document.getElementById('caja-ajustes-detalle')!;
+  const cajaPosicionNeta = document.getElementById('caja-posicion-neta')!;
 
   function showAperturaError(message: string): void {
     aperturaFeedback.textContent = message;
@@ -54,19 +59,50 @@ export function initCaja({ getCurrentUser }: CajaDeps): CajaApi {
     cajaTotal.className = breakdown.cajaCents < 0 ? 'text-red-600' : 'text-gray-900';
   }
 
+  /**
+   * The two figures that stay OUTSIDE the balance (design.md D6): "Ajustes
+   * otorgados" groups the granted reductions by concept, and "Posición neta"
+   * adds the receivable to the derived arca. Neither is a term of
+   * `computeCaja`: `renderBreakdown` above still prints the balance untouched.
+   */
+  function renderAjustesReporte(
+    rows: readonly AjusteReporteRow[],
+    breakdown: CajaBreakdown,
+    porCobrarCents: number,
+  ): void {
+    const { totalCents, porConcepto } = sumAjustesOtorgados(rows);
+
+    setText(cajaAjustesTotal, formatMXN(totalCents));
+    setText(
+      cajaAjustesDetalle,
+      porConcepto.length === 0
+        ? 'Sin ajustes registrados.'
+        : porConcepto
+            .map((grupo) => `${grupo.conceptoNombre}: ${formatMXN(grupo.totalCents)}`)
+            .join(' · '),
+    );
+    setText(cajaPosicionNeta, formatMXN(netPositionCents(breakdown.cajaCents, porCobrarCents)));
+  }
+
   async function render(): Promise<void> {
     try {
-      const [breakdown, apertura, porCobrarCents] = await Promise.all([
+      const [breakdown, apertura, porCobrarCents, ajustesRows] = await Promise.all([
         fetchCaja(),
         fetchApertura(),
         fetchPorCobrar(),
+        fetchAjustesReporte(),
       ]);
       renderBreakdown(breakdown, porCobrarCents);
+      renderAjustesReporte(ajustesRows, breakdown, porCobrarCents);
       aperturaMontoInput.value = apertura ? String(apertura.monto_apertura) : '';
     } catch (error) {
       console.error('Error al cargar la caja:', error);
       setText(cajaTotal, 'Error');
       cajaTotal.className = 'text-red-600';
+      // A failed load must not leave the previous period's numbers on screen.
+      setText(cajaAjustesTotal, '—');
+      setText(cajaAjustesDetalle, '—');
+      setText(cajaPosicionNeta, '—');
     }
   }
 

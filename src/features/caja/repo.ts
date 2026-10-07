@@ -1,3 +1,4 @@
+import type { AjusteReporteRow, AjusteTipo } from '../../lib/ajustes';
 import type { CajaBreakdown } from '../../lib/caja';
 import { computeCaja } from '../../lib/caja';
 import { aggregateDebtByMember, type CargoPendienteRow } from '../../lib/debt-view.js';
@@ -105,4 +106,24 @@ export async function fetchPorCobrar(): Promise<number> {
     .eq('estado', 'pendiente');
   if (error) throw error;
   return aggregateDebtByMember((data ?? []) as unknown as CargoPendienteRow[]).totalPendienteCents;
+}
+
+/** Every ledger row mapped for the "Ajustes otorgados" figure. The Ajustes feature owns the writer; this feature owns its own read because no feature may import another (module boundary). */
+export async function fetchAjustesReporte(): Promise<AjusteReporteRow[]> {
+  const { data, error } = await dbClient
+    .from('registro_ajustes')
+    .select('tipo, monto, catalogo_conceptos(nombre)');
+  if (error) throw error;
+
+  const filas = (data ?? []) as unknown as {
+    tipo: AjusteTipo;
+    monto: number;
+    catalogo_conceptos: { nombre: string } | null;
+  }[];
+
+  return filas.map((fila) => ({
+    tipo: fila.tipo,
+    montoCents: toCents(fila.monto),
+    conceptoNombre: fila.catalogo_conceptos?.nombre ?? null,
+  }));
 }

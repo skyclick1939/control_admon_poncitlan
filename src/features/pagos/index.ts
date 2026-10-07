@@ -32,6 +32,9 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
   const pagoMontoInput = document.getElementById('pago-monto') as HTMLInputElement;
   const pagoFechaInput = document.getElementById('pago-fecha') as HTMLInputElement;
   const pagoObservacionesInput = document.getElementById('pago-observaciones') as HTMLTextAreaElement;
+  const pagoNaturaleza = document.getElementById('pago-naturaleza') as HTMLSelectElement;
+  const pagoAjusteRouting = document.getElementById('pago-ajuste-routing')!;
+  const pagoIrAjustes = document.getElementById('pago-ir-ajustes')!;
 
   /** Total pending debt (cents) for the currently selected member — kept in sync by `handleMemberSelectionForPayment`. Used to block an overpayment before it reaches the DB. */
   let currentTotalPendienteCents = 0;
@@ -45,6 +48,8 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
         .map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`)
         .join('');
     pagoForm.reset();
+    // reset() clears the select but does not toggle the routing hint (design.md D8).
+    syncAjusteRouting();
     pagoInfoDisplay.classList.add('view-hidden');
     deudaDisplay.classList.add('view-hidden');
     pagoFechaInput.valueAsDate = new Date();
@@ -105,10 +110,23 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
       .join('');
   }
 
+  /**
+   * The routing hint is visible ONLY while the selected naturaleza is
+   * `'ajuste'` (design.md D8): the third option records nothing in this form,
+   * so its only job is to point the operator at the Ajustes module.
+   */
+  function syncAjusteRouting(): void {
+    pagoAjusteRouting.classList.toggle('view-hidden', pagoNaturaleza.value !== 'ajuste');
+  }
+
   function validatePagoForm(): void {
     const monto = parseFloat(pagoMontoInput.value) || 0;
     const fecha = pagoFechaInput.value;
-    savePagoButton.disabled = !(monto > 0 && fecha);
+    const naturaleza = pagoNaturaleza.value;
+    // An empty or `'ajuste'` naturaleza must never submit: the third option
+    // records nothing here, so enabling the button would only produce a pago
+    // the operator did not mean to create (design.md D8).
+    savePagoButton.disabled = !(monto > 0 && fecha && naturaleza !== '' && naturaleza !== 'ajuste');
   }
 
   async function handleMemberSelectionForPayment(memberId: string): Promise<void> {
@@ -154,6 +172,25 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
   async function handleSavePago(e: Event): Promise<void> {
     e.preventDefault();
     pagoFeedback.textContent = '';
+
+    // The naturaleza guard runs BEFORE any read, write or `aplicarPago` call
+    // (design.md D8): neither branch below can insert a `registro_pagos` row.
+    const naturaleza = pagoNaturaleza.value;
+    if (naturaleza === '') {
+      pagoFeedback.textContent = 'Selecciona la naturaleza del cobro.';
+      pagoFeedback.className = 'mt-2 text-sm text-red-600';
+      validatePagoForm();
+      return;
+    }
+    if (naturaleza === 'ajuste') {
+      syncAjusteRouting();
+      pagoFeedback.textContent =
+        'Este cobro no entra al Arca ni se registra como pago. Regístralo en el módulo de Ajustes.';
+      pagoFeedback.className = 'mt-2 text-sm text-amber-700';
+      validatePagoForm();
+      return;
+    }
+
     savePagoButton.disabled = true;
 
     const currentUser = getCurrentUser();
@@ -194,6 +231,7 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
 
       pagoForm.reset();
       pagoFechaInput.valueAsDate = new Date();
+      syncAjusteRouting();
       await handleMemberSelectionForPayment(miembroId);
     } catch (error) {
       console.error('Error al guardar el pago:', error);
@@ -208,6 +246,15 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
     void handleMemberSelectionForPayment((e.target as HTMLSelectElement).value);
   });
   deudaConceptoFilter.addEventListener('change', renderDeudaTable);
+  pagoNaturaleza.addEventListener('change', () => {
+    syncAjusteRouting();
+    validatePagoForm();
+  });
+  pagoIrAjustes.addEventListener('click', () => {
+    // The shell's `setupNavigation` listener performs the switch; this only
+    // clicks the existing nav link, so no second router is introduced.
+    document.querySelector<HTMLElement>('.nav-link[data-view="ajustes-content"]')?.click();
+  });
   pagoForm.addEventListener('input', validatePagoForm);
   pagoForm.addEventListener('submit', handleSavePago);
 
