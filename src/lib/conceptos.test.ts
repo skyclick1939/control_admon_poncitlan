@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   NATURALEZAS,
+  conceptosPresentes,
   filterByNaturaleza,
   isConceptoNaturaleza,
+  matchesConceptoFiltro,
   normalizeConceptoText,
   resolveConcepto,
   searchConceptos,
@@ -159,6 +161,52 @@ describe('filterByNaturaleza', () => {
   it('keeps only the requested nature, preserving catalog order and the active flag', () => {
     expect(ids(filterByNaturaleza(CATALOGO, 'no_recuperable'))).toEqual(['1', '5']);
     expect(ids(filterByNaturaleza(CATALOGO, 'recuperable'))).toEqual(['2', '3', '4', '6']);
+  });
+});
+
+describe('matchesConceptoFiltro', () => {
+  it('matches every cargo when the filter is "all" (null), concept or not', () => {
+    expect(matchesConceptoFiltro('Apoyo legal', null)).toBe(true);
+    expect(matchesConceptoFiltro(null, null)).toBe(true);
+    expect(matchesConceptoFiltro(undefined, null)).toBe(true);
+  });
+
+  it('matches only the exact stored concept name, never a substring or a different casing', () => {
+    expect(matchesConceptoFiltro('Apoyo legal', 'Apoyo legal')).toBe(true);
+    expect(matchesConceptoFiltro('Apoyo legal', 'apoyo')).toBe(false);
+    expect(matchesConceptoFiltro('Apoyo legal', 'Apoyo Legal')).toBe(false);
+    expect(matchesConceptoFiltro('Apoyo legal', 'Apoyo aniversario')).toBe(false);
+  });
+
+  it('never matches a cargo recorded before the catalog existed when a concept is selected', () => {
+    expect(matchesConceptoFiltro(null, 'Apoyo legal')).toBe(false);
+    expect(matchesConceptoFiltro(undefined, 'Apoyo legal')).toBe(false);
+  });
+});
+
+describe('conceptosPresentes', () => {
+  it('lists each concept once, in first-seen order', () => {
+    expect(conceptosPresentes(['Donaciones', 'Apoyo legal', 'Donaciones', 'Apoyo legal'])).toEqual([
+      'Donaciones',
+      'Apoyo legal',
+    ]);
+  });
+
+  it('drops the rows with no concept: a pre-catalog row is not a concept', () => {
+    expect(conceptosPresentes([null, 'Donaciones', undefined, '', 'Apoyo legal'])).toEqual([
+      'Donaciones',
+      'Apoyo legal',
+    ]);
+    expect(conceptosPresentes([null, undefined, ''])).toEqual([]);
+  });
+
+  it('does not mutate its input', () => {
+    const nombres = ['Donaciones', 'Apoyo legal'];
+    const before = [...nombres];
+
+    conceptosPresentes(nombres);
+
+    expect(nombres).toEqual(before);
   });
 });
 

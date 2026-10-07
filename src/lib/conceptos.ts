@@ -136,3 +136,43 @@ export function resolveConcepto(
     ) ?? null
   );
 }
+
+/**
+ * The pagos debt table's concept filter: `null` means "all concepts" and
+ * matches every listed cargo, including rows recorded before the catalog
+ * existed. A name matches the STORED concept name exactly — never a substring
+ * and never a text search over `motivo` — so the operator filters by the
+ * classification and not by the prose (spec "Movements are filterable by
+ * concept"). Exact equality is deliberately chosen over accent folding: the
+ * option values come from the same cargo read, so folding could only make two
+ * distinct concepts collide. PURE.
+ */
+export function matchesConceptoFiltro(
+  nombre: string | null | undefined,
+  conceptoSeleccionado: string | null,
+): boolean {
+  if (conceptoSeleccionado === null) return true;
+  return nombre === conceptoSeleccionado;
+}
+
+/**
+ * The distinct concept names actually present in a list of cargos, in
+ * first-seen order. `null`, `undefined` and the empty string (a movement
+ * recorded before the catalog existed) contribute no option: that row is not a
+ * concept, and the "all" option already shows it (spec "Historical rows may
+ * have no concept"). PURE.
+ */
+export function conceptosPresentes(
+  nombres: readonly (string | null | undefined)[],
+): string[] {
+  const presentes: string[] = [];
+  const seen = new Set<string>();
+
+  for (const nombre of nombres) {
+    if (!nombre || seen.has(nombre)) continue;
+    seen.add(nombre);
+    presentes.push(nombre);
+  }
+
+  return presentes;
+}

@@ -45,6 +45,27 @@ export async function createConcepto(input: NuevoConceptoInput): Promise<Concept
   return data as Concepto;
 }
 
+/**
+ * Flips `catalogo_conceptos.activo` for one concept (spec "Concepts Are
+ * Deactivated, Never Deleted"). This is the whole of the catalog's lifecycle:
+ * there is deliberately NO delete writer, because `registro_apoyos.concepto_id`
+ * and `registro_egresos.concepto_id` are `ON DELETE NO ACTION`, so Postgres
+ * refuses to delete a concept that is in use — and that refusal is the intended
+ * behaviour, not a gap to route around. Deactivating keeps every historical
+ * classification intact while removing the concept from the capture selector
+ * (`searchConceptos`/`resolveConcepto` already skip `activo: false`).
+ */
+export async function setConceptoActivo(id: string, activo: boolean): Promise<Concepto> {
+  const { data, error } = await dbClient
+    .from('catalogo_conceptos')
+    .update({ activo })
+    .eq('id', id)
+    .select('id, slug, nombre, naturaleza, activo')
+    .single();
+  if (error) throw error;
+  return data as Concepto;
+}
+
 export interface NuevoApoyoInput {
   capturadoPorId: string;
   nombreCapturador: string;

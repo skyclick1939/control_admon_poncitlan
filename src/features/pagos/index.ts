@@ -1,8 +1,10 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
+import { conceptosPresentes, matchesConceptoFiltro } from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
 import { activeMiembros } from '../../lib/miembros';
 import { toCents, toPesos } from '../../lib/money';
+import type { CargoConApoyo } from '../../lib/types';
 import { aplicarPago, fetchCargosPendientes } from './repo';
 
 export interface PagosDeps {
@@ -24,6 +26,7 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
   const deudaNickname = document.getElementById('deuda-nickname')!;
   const deudaTotal = document.getElementById('deuda-total')!;
   const deudaTableBody = document.getElementById('deuda-table-body')!;
+  const deudaConceptoFilter = document.getElementById('deuda-concepto-filter') as HTMLSelectElement;
   const savePagoButton = document.getElementById('save-pago-button') as HTMLButtonElement;
   const pagoFeedback = document.getElementById('pago-feedback')!;
   const pagoMontoInput = document.getElementById('pago-monto') as HTMLInputElement;
@@ -32,6 +35,8 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
 
   /** Total pending debt (cents) for the currently selected member — kept in sync by `handleMemberSelectionForPayment`. Used to block an overpayment before it reaches the DB. */
   let currentTotalPendienteCents = 0;
+  /** The selected member's pending cargos as last fetched. The concept filter runs over this list client-side, so filtering never issues a new query. */
+  let cargosPendientes: CargoConApoyo[] = [];
 
   function renderPagosForm(): void {
     pagoMiembroSelect.innerHTML =
@@ -44,6 +49,60 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
     deudaDisplay.classList.add('view-hidden');
     pagoFechaInput.valueAsDate = new Date();
     currentTotalPendienteCents = 0;
+    cargosPendientes = [];
+    populateConceptoFilter();
+    renderDeudaTable();
+  }
+
+  /**
+   * Fills the concept filter from the concepts actually present in the listed
+   * cargos (never the whole catalog), with "all" first, and resets the
+   * selection to "all". Called on every member change, so the filter can never
+   * carry a concept that the newly selected member does not have.
+   */
+  function populateConceptoFilter(): void {
+    const presentes = conceptosPresentes(
+      cargosPendientes.map((cargo) => cargo.registro_apoyos.catalogo_conceptos?.nombre),
+    );
+    deudaConceptoFilter.innerHTML =
+      '<option value="">Todos los conceptos</option>' +
+      presentes
+        .map((nombre) => `<option value="${escapeHtml(nombre)}">${escapeHtml(nombre)}</option>`)
+        .join('');
+    deudaConceptoFilter.value = '';
+  }
+
+  /**
+   * Renders the debt table through the current concept filter. Purely local:
+   * the predicate lives in `matchesConceptoFiltro` and is applied to the
+   * already-fetched cargos, so no keystroke or selection reaches the network.
+   */
+  function renderDeudaTable(): void {
+    const conceptoSeleccionado = deudaConceptoFilter.value || null;
+    const visibles = cargosPendientes.filter((cargo) =>
+      matchesConceptoFiltro(cargo.registro_apoyos.catalogo_conceptos?.nombre, conceptoSeleccionado),
+    );
+
+    if (visibles.length === 0) {
+      deudaTableBody.innerHTML =
+        cargosPendientes.length === 0
+          ? `<tr><td colspan="3" class="text-green-500 text-center py-4">¡Este miembro no tiene adeudos!</td></tr>`
+          : `<tr><td colspan="3" class="text-gray-500 text-center py-4">No hay adeudos pendientes con ese concepto.</td></tr>`;
+      return;
+    }
+
+    deudaTableBody.innerHTML = visibles
+      .map((cargo) => {
+        const conceptoNombre = cargo.registro_apoyos.catalogo_conceptos?.nombre ?? '';
+        return `
+          <tr>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(cargo.registro_apoyos.motivo)}${conceptoNombre ? `<span class="block text-xs text-gray-400">${escapeHtml(conceptoNombre)}</span>` : ''}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${new Date(cargo.registro_apoyos.fecha).toLocaleDateString()}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">$${toPesos(toCents(cargo.monto_pendiente)).toFixed(2)}</td>
+          </tr>
+        `;
+      })
+      .join('');
   }
 
   function validatePagoForm(): void {
@@ -57,6 +116,9 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
       pagoInfoDisplay.classList.add('view-hidden');
       deudaDisplay.classList.add('view-hidden');
       currentTotalPendienteCents = 0;
+      cargosPendientes = [];
+      populateConceptoFilter();
+      renderDeudaTable();
       return;
     }
 
@@ -71,27 +133,17 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
       setText(deudaTotal, 'Error');
       deudaTableBody.innerHTML = `<tr><td colspan="3" class="text-red-500 text-center py-4">No se pudo cargar la deuda.</td></tr>`;
       currentTotalPendienteCents = 0;
+      cargosPendientes = [];
+      populateConceptoFilter();
       return;
     }
 
+    cargosPendientes = cargos;
     currentTotalPendienteCents = cargos.reduce((sum, cargo) => sum + toCents(cargo.monto_pendiente), 0);
     setText(deudaTotal, `$${toPesos(currentTotalPendienteCents).toFixed(2)}`);
 
-    deudaTableBody.innerHTML =
-      cargos.length === 0
-        ? `<tr><td colspan="3" class="text-green-500 text-center py-4">¡Este miembro no tiene adeudos!</td></tr>`
-        : cargos
-            .map((cargo) => {
-              const conceptoNombre = cargo.registro_apoyos.catalogo_conceptos?.nombre ?? '';
-              return `
-          <tr>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(cargo.registro_apoyos.motivo)}${conceptoNombre ? `<span class="block text-xs text-gray-400">${escapeHtml(conceptoNombre)}</span>` : ''}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${new Date(cargo.registro_apoyos.fecha).toLocaleDateString()}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">$${toPesos(toCents(cargo.monto_pendiente)).toFixed(2)}</td>
-          </tr>
-        `;
-            })
-            .join('');
+    populateConceptoFilter();
+    renderDeudaTable();
 
     pagoInfoDisplay.classList.remove('view-hidden');
     deudaDisplay.classList.remove('view-hidden');
@@ -155,6 +207,7 @@ export function initPagos({ app, getCurrentUser }: PagosDeps): PagosApi {
   pagoMiembroSelect.addEventListener('change', (e) => {
     void handleMemberSelectionForPayment((e.target as HTMLSelectElement).value);
   });
+  deudaConceptoFilter.addEventListener('change', renderDeudaTable);
   pagoForm.addEventListener('input', validatePagoForm);
   pagoForm.addEventListener('submit', handleSavePago);
 

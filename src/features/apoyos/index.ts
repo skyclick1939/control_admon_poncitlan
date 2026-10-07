@@ -7,7 +7,7 @@ import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
 import type { Miembro } from '../../lib/types';
 import { fetchMembers } from '../miembros/repo';
-import { createConcepto, fetchConceptos, saveApoyo, saveApoyoSinCargos } from './repo';
+import { createConcepto, fetchConceptos, saveApoyo, saveApoyoSinCargos, setConceptoActivo } from './repo';
 
 export interface ApoyosDeps {
   app: App;
@@ -37,6 +37,16 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   const conceptoCreateButton = document.getElementById('concepto-create-button') as HTMLButtonElement;
   const nuevoConceptoNaturalezaSelect = document.getElementById('nuevo_concepto_naturaleza') as HTMLSelectElement;
   const conceptoFeedback = document.getElementById('concepto-feedback')!;
+  const conceptoManageToggle = document.getElementById('concepto-manage-toggle') as HTMLButtonElement;
+  const conceptoManagePanel = document.getElementById('concepto-manage-panel')!;
+  const conceptoManageList = document.getElementById('concepto-manage-list')!;
+  const conceptoManageFeedback = document.getElementById('concepto-manage-feedback')!;
+
+  /** Display label for each catalog nature. UI copy only; the value stays the database union. */
+  const NATURALEZA_LABEL: Record<ConceptoNaturaleza, string> = {
+    recuperable: 'Recuperable',
+    no_recuperable: 'No recuperable',
+  };
 
   let beneficiarios: Miembro[] = [];
   /** The catalog as last read, plus any concept created in place during this session (design.md D9). */
@@ -140,7 +150,83 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
       // The selector stays empty and the save stays blocked: an unclassified
       // capture is refused rather than silently misclassified (design.md D3).
     }
+    renderConceptoManageList();
     refreshConceptoUi();
+  }
+
+  /**
+   * Lists the whole catalog — active AND deactivated — with an Activar/
+   * Desactivar control per row. There is deliberately no delete control: the
+   * database refuses to delete a concept that is in use (spec "Concepts Are
+   * Deactivated, Never Deleted"). Rendered via `escapeHtml`, never raw.
+   */
+  function renderConceptoManageList(): void {
+    conceptoManageList.innerHTML =
+      conceptos.length === 0
+        ? '<li class="py-2 text-sm text-gray-500">No hay conceptos en el catálogo.</li>'
+        : conceptos
+            .map(
+              (concepto) => `
+        <li class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm ${concepto.activo ? 'text-gray-800' : 'text-gray-400'}">
+            ${escapeHtml(concepto.nombre)}
+            <span class="block text-xs text-gray-500">${NATURALEZA_LABEL[concepto.naturaleza]}</span>
+          </span>
+          <span class="flex items-center gap-2">
+            <span class="text-xs ${concepto.activo ? 'text-green-700' : 'text-gray-500'}">${concepto.activo ? 'Activo' : 'Desactivado'}</span>
+            <button type="button" data-concepto-id="${escapeHtml(concepto.id)}" class="text-xs px-3 py-1 rounded-md transition ${concepto.activo ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}">${concepto.activo ? 'Desactivar' : 'Reactivar'}</button>
+          </span>
+        </li>`,
+            )
+            .join('');
+  }
+
+  /**
+   * Flips one concept's active flag. Deactivating is not deleting: the row stays
+   * and its historical classifications with it. If the concept being deactivated
+   * is the one currently selected in the capture form, the selection is cleared
+   * so the form cannot submit a concept that is no longer offered.
+   */
+  async function handleToggleConcepto(button: HTMLButtonElement): Promise<void> {
+    const id = button.dataset.conceptoId;
+    const actual = id ? conceptos.find((concepto) => concepto.id === id) : undefined;
+    if (!id || !actual) return;
+
+    conceptoManageFeedback.textContent = '';
+    button.disabled = true;
+
+    try {
+      const actualizado = await setConceptoActivo(id, !actual.activo);
+
+      // Resolve BEFORE replacing the catalog: once the concept is inactive,
+      // `resolveConcepto` refuses it and the "same selection" check is lost.
+      const seleccionPrevia = resolveConcepto(
+        conceptos,
+        conceptoApoyoInput.value,
+        currentNaturaleza() ?? undefined,
+      );
+      if (!actualizado.activo && seleccionPrevia?.id === actualizado.id) {
+        conceptoApoyoInput.value = '';
+        conceptoFeedback.textContent = '';
+      }
+
+      conceptos = conceptos.map((concepto) => (concepto.id === actualizado.id ? actualizado : concepto));
+      renderConceptoManageList();
+      validateApoyoForm();
+      setText(
+        conceptoManageFeedback,
+        actualizado.activo
+          ? 'Concepto reactivado: vuelve a ofrecerse en el selector.'
+          : 'Concepto desactivado: no se elimina y la clasificación histórica se conserva.',
+      );
+      conceptoManageFeedback.className = 'mt-2 text-sm text-green-700';
+    } catch (error) {
+      console.error('Error al actualizar el concepto:', error);
+      conceptoManageFeedback.textContent = 'No se pudo actualizar el concepto. Intenta de nuevo.';
+      conceptoManageFeedback.className = 'mt-2 text-sm text-red-600';
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function getMembersToCharge(): Miembro[] {
@@ -307,6 +393,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
       });
       conceptos = [...conceptos, nuevo];
       conceptoApoyoInput.value = nuevo.nombre;
+      renderConceptoManageList();
       validateApoyoForm();
     } catch (error) {
       console.error('Error al crear el concepto:', error);
@@ -328,6 +415,13 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     conceptoApoyoInput.value = '';
     conceptoFeedback.textContent = '';
     validateApoyoForm();
+  });
+  conceptoManageToggle.addEventListener('click', () => {
+    conceptoManagePanel.classList.toggle('view-hidden');
+  });
+  conceptoManageList.addEventListener('click', (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-concepto-id]');
+    if (button) void handleToggleConcepto(button);
   });
   solicitudForm.addEventListener('submit', handleSaveApoyo);
 
