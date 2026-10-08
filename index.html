@@ -2,9 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Gastos Poncitlán</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -77,11 +76,11 @@
         <div id="dashboard-view" class="view-hidden">
             <div class="relative min-h-screen lg:flex">
                 <!-- Overlay para menú móvil -->
-                <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden view-hidden"></div>
+                <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/50 z-20 lg:hidden view-hidden"></div>
 
                 <!-- Sidebar -->
-                <div id="main-sidebar" class="bg-white shadow-md w-64 flex-shrink-0 flex-col fixed inset-y-0 left-0 z-30 transform -translate-x-full transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:flex">
-                    <div class="p-6 text-center border-b">
+                <div id="main-sidebar" class="bg-white shadow-md w-64 shrink-0 flex-col fixed inset-y-0 left-0 z-30 transform -translate-x-full transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:flex">
+                    <div class="p-6 text-center border-b border-gray-200">
                         <h2 class="text-xl font-bold text-gray-800">Menú Principal</h2>
                     </div>
                     <nav class="flex-1 px-4 py-4 space-y-2">
@@ -93,7 +92,7 @@
                         <a href="#ajustes" data-view="ajustes-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Ajustes</a>
                         <a href="#administracion" data-view="admin-content" id="nav-admin-link" class="nav-link view-hidden flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Administración</a>
                     </nav>
-                    <div class="p-4 border-t">
+                    <div class="p-4 border-t border-gray-200">
                          <div id="user-info" class="text-sm text-gray-600 mb-4"></div>
                          <button id="logout-button" class="w-full text-left flex items-center px-4 py-2 text-red-600 hover:bg-red-100 rounded-md">Cerrar Sesión</button>
                     </div>
@@ -319,7 +318,7 @@
                                 </div>
                                 <div id="individual-members-list" class="mt-6 view-hidden">
                                     <h3 class="text-lg font-medium text-gray-800 mb-2">Seleccionar Miembros</h3>
-                                    <div id="members-checkbox-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-48 overflow-y-auto p-4 border rounded-md"></div>
+                                    <div id="members-checkbox-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded-md"></div>
                                 </div>
                                 <div id="beneficiario-list" class="mt-6 view-hidden">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

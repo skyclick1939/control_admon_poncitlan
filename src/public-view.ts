@@ -14,6 +14,7 @@
 // exhaustively unit-tested in Phase 1 (spec safe-rendering) and reused
 // as-is below, never reimplemented.
 // ============================================================================
+import './style.css';
 import { copyToClipboard } from './lib/clipboard';
 import { escapeHtml, setText } from './lib/escape';
 import type { DebtViewResponse } from './lib/types';
