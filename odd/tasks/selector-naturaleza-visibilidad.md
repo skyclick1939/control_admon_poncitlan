@@ -1,7 +1,7 @@
 # Feature: que nunca vuelva a parecer que faltan conceptos
 
-**Status:** implementado y verificado por pruebas; entrega en curso.
-**Owner:** club operator (product owner) · **Repo branch:** `fix/selector-naturaleza-visibilidad`
+**Status:** **desplegado en producción 2026-10-08** (PR #7 → `34f8864`, Production a las 03:36:09Z).
+**Owner:** club operator (product owner) · **Repo branch:** `fix/selector-naturaleza-visibilidad`, merged into `main` as `34f8864`
 **Related:** `odd/tasks/concepto-desplegable-fijo.md`, `openspec/changes/ajustes-y-clasificacion` (delta `catalogo-conceptos`, design D9)
 
 > **Figures are deliberately absent.** This repository is public.
@@ -36,7 +36,7 @@ Si el operador captura apoyos que **el Arca absorbe**, el catálogo no tiene nin
 - [x] 1.2 Markup: `#concepto-nota` y `#concepto-atajo-individual`, dos líneas, justo después de `#concepto-help`. Nada más del archivo cambió.
 - [x] 1.3 Cableado: la nota se calcula en `refreshConceptoUi`, se pinta ámbar con `no_recuperable` y gris con `recuperable`; el atajo se muestra sólo cuando `ofreceAtajoApoyos` lo pide y, al hacer clic, cambia la modalidad a Individual y ejecuta **el mismo camino** del manejador de cambio, extraído a `applyTipoDivisionChange` para no duplicar la lógica.
 - [x] 1.4 `npx tsc --noEmit` exit 0; `npx vitest run` 16/16 archivos y **273/273**; `npm run build` exit 0 con el guard verde. Cobertura de clases: 224 tokens, 15 sin regla, todos los ya conocidos (12 ganchos de JS + 3 clases de los `<style>` embebidos). **0 faltantes reales.**
-- [ ] 1.5 Commit por unidad, PR, merge, verificación sobre producción.
+- [x] 1.5 PR **#7** mergeado a `main` como `34f8864`. Verificación sobre lo servido: `#concepto-nota` y `#concepto-atajo-individual` presentes en el HTML, el `<select id="concepto_apoyo">` sigue ahí, y el bundle `main-LIAmWtge.js` contiene el copy nuevo («no crea adeudo», «conceptos no recuperables»).
 
 ## Transitorio cerrado por el padre
 
@@ -46,3 +46,4 @@ El ejecutor reportó que, mientras la carga del catálogo está en vuelo, la not
 
 1. Sigo sin navegador: la prueba del clic vuelve a ser del operador.
 2. La auditoría del colaborador continúa bloqueada porque no hay host del bridge.
+3. **Hueco de modelo de dominio, no resuelto aquí**: `Beneficiario (opcional)` sólo se muestra con `SIN_CARGOS` (`src/features/apoyos/index.ts`, la línea que hace `toggle` sobre `beneficiarioListDiv`), lo que sugiere que la captura «apoyo absorbido por el Arca para una persona» es un flujo real — y el catálogo **no tiene ningún concepto de apoyo no recuperable**. Con la regla actual, ese flujo sólo puede clasificarse como «Donaciones» o «Adquisiciones del capítulo», que significan otra cosa. El formulario ya permite crear el concepto que falta en el momento (`➕ Crear concepto nuevo…`, que fija la naturaleza correcta solo); la alternativa —que el concepto decida la naturaleza en vez de la modalidad— es un cambio de spec y queda como decisión del operador.
