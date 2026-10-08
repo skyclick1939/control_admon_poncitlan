@@ -1,6 +1,6 @@
 # Feature: que nunca vuelva a parecer que faltan conceptos
 
-**Status:** in progress
+**Status:** implementado y verificado por pruebas; entrega en curso.
 **Owner:** club operator (product owner) · **Repo branch:** `fix/selector-naturaleza-visibilidad`
 **Related:** `odd/tasks/concepto-desplegable-fijo.md`, `openspec/changes/ajustes-y-clasificacion` (delta `catalogo-conceptos`, design D9)
 
@@ -32,11 +32,15 @@ Si el operador captura apoyos que **el Arca absorbe**, el catálogo no tiene nin
 
 ## Tasks
 
-- [ ] 1.1 Puras nuevas con TDD: `notaConceptosDisponibles(naturaleza, disponibles)` (con singular/plural correcto) y `ofreceAtajoApoyos(naturaleza)`.
-- [ ] 1.2 Markup: `#concepto-nota` y `#concepto-atajo-individual`.
-- [ ] 1.3 Cableado: la nota se actualiza en `refreshConceptoUi`, y el atajo cambia la modalidad y repuebla.
-- [ ] 1.4 `npx tsc --noEmit`, `npx vitest run` y `npm run build` verdes.
+- [x] 1.1 Puras con TDD: `notaConceptosDisponibles(naturaleza, disponibles)` (singular/plural y `null` sin modalidad) y `ofreceAtajoApoyos(naturaleza)`. **RED** 6 fallas (`notaConceptosDisponibles is not a function`, `ofreceAtajoApoyos is not a function`) → **GREEN** 41/41. La prueba que impide que el copy incruste nombres del catálogo se extendió a las dos funciones nuevas.
+- [x] 1.2 Markup: `#concepto-nota` y `#concepto-atajo-individual`, dos líneas, justo después de `#concepto-help`. Nada más del archivo cambió.
+- [x] 1.3 Cableado: la nota se calcula en `refreshConceptoUi`, se pinta ámbar con `no_recuperable` y gris con `recuperable`; el atajo se muestra sólo cuando `ofreceAtajoApoyos` lo pide y, al hacer clic, cambia la modalidad a Individual y ejecuta **el mismo camino** del manejador de cambio, extraído a `applyTipoDivisionChange` para no duplicar la lógica.
+- [x] 1.4 `npx tsc --noEmit` exit 0; `npx vitest run` 16/16 archivos y **273/273**; `npm run build` exit 0 con el guard verde. Cobertura de clases: 224 tokens, 15 sin regla, todos los ya conocidos (12 ganchos de JS + 3 clases de los `<style>` embebidos). **0 faltantes reales.**
 - [ ] 1.5 Commit por unidad, PR, merge, verificación sobre producción.
+
+## Transitorio cerrado por el padre
+
+El ejecutor reportó que, mientras la carga del catálogo está en vuelo, la nota diría «0 conceptos … disponibles», y eso se puede leer como «esta modalidad no tiene conceptos». Se suprimió la nota mientras `conceptos.length === 0`: un conteo en cero nunca debe verse como una respuesta.
 
 ## Open risks
 
