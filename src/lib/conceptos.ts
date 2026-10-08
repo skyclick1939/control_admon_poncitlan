@@ -169,7 +169,7 @@ export function conceptosPresentes(
  * D2 — this is the constraint, not a defect).
  */
 const SIN_MODALIDAD_HELP =
-  'La lista de conceptos depende de la modalidad "Dividir entre": sin elegirla, esta captura no puede continuar.';
+  'La lista de conceptos depende de la modalidad "¿Quién lo paga?": sin elegirla, esta captura no puede continuar.';
 
 /**
  * What the modality's nature means for the capture. The non-recoverable case is
@@ -182,7 +182,7 @@ const NATURALEZA_HELP: Record<ConceptoNaturaleza, string> = {
   recuperable:
     'Esta captura crea un adeudo recuperable, así que solo se ofrecen conceptos recuperables.',
   no_recuperable:
-    'Esta modalidad no crea adeudo, así que solo se ofrecen conceptos no recuperables. Los conceptos de apoyo se ofrecen con Individual, Fullparch o Todos.',
+    'Esta modalidad no crea adeudo, así que solo se ofrecen conceptos no recuperables. Los conceptos de apoyo se ofrecen cuando el cargo lo pagan los miembros: Un solo miembro, Sólo los Fullparch o Todos los miembros.',
 };
 
 /**
@@ -252,7 +252,7 @@ export function notaConceptosDisponibles(
 
   return `Esta modalidad no crea adeudo: solo sus ${disponibles} ${
     plural ? 'conceptos no recuperables' : 'concepto no recuperable'
-  } están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».`;
+  } están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Un solo miembro, Sólo los Fullparch o Todos los miembros; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».`;
 }
 
 /**

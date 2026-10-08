@@ -17,7 +17,7 @@ import { planAjuste } from '../../lib/ajustes';
 import type { Concepto } from '../../lib/conceptos';
 import { resolveConcepto } from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
-import { activeMiembros } from '../../lib/miembros';
+import { miembrosSeleccionables } from '../../lib/miembros';
 import type { Charge } from '../../lib/money';
 import { formatMXN, toCents } from '../../lib/money';
 import type { AjusteRegistro, CargoAjustable, RegistrarAjusteInput } from './repo';
@@ -111,9 +111,9 @@ export function initAjustes({ app, getCurrentUser }: AjustesDeps): AjustesApi {
     setText(ajustePreview, '');
   }
 
-  /** Fills both member selectors with active members, placeholder first. */
+  /** Fills both member selectors with the selectable members, placeholder first. */
   function populateMemberSelects(): void {
-    const options = activeMiembros(app.state.members)
+    const options = miembrosSeleccionables(app.state.members)
       .map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`)
       .join('');
     ajusteMiembroSelect.innerHTML = MIEMBRO_PLACEHOLDER + options;

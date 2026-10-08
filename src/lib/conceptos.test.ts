@@ -300,7 +300,7 @@ describe('conceptoAyudaText', () => {
   it('blocks the capture and names the modality the list depends on when there is none', () => {
     const text = conceptoAyudaText(null, 'sin_modalidad');
 
-    expect(text).toContain('Dividir entre');
+    expect(text).toContain('¿Quién lo paga?');
     expect(text).toContain('no puede continuar');
   });
 
@@ -317,7 +317,7 @@ describe('conceptoAyudaText', () => {
 
     expect(text).toContain('no crea adeudo');
     expect(text).toContain('solo se ofrecen conceptos no recuperables');
-    expect(text).toContain('Individual, Fullparch o Todos');
+    expect(text).toContain('Un solo miembro, Sólo los Fullparch o Todos los miembros');
     expect(text).toContain('elige un concepto de la lista');
   });
 
@@ -391,10 +391,10 @@ describe('notaConceptosDisponibles', () => {
 
   it('says the modality creates no debt and where the support concepts are offered', () => {
     expect(notaConceptosDisponibles('no_recuperable', 1)).toBe(
-      'Esta modalidad no crea adeudo: solo sus 1 concepto no recuperable están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
+      'Esta modalidad no crea adeudo: solo sus 1 concepto no recuperable están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Un solo miembro, Sólo los Fullparch o Todos los miembros; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
     );
     expect(notaConceptosDisponibles('no_recuperable', 2)).toBe(
-      'Esta modalidad no crea adeudo: solo sus 2 conceptos no recuperables están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
+      'Esta modalidad no crea adeudo: solo sus 2 conceptos no recuperables están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Un solo miembro, Sólo los Fullparch o Todos los miembros; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
     );
   });
 });
