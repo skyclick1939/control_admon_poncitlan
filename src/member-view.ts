@@ -23,6 +23,7 @@
 // same-origin except to /vista/, whose no-referrer meta tag (mi-cuenta's own
 // page also carries no-referrer) keeps it out of any request log.
 // ============================================================================
+import './style.css';
 import { escapeHtml, setText } from './lib/escape';
 import type { MemberViewResponse } from './lib/types';
 

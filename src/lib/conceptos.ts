@@ -36,6 +36,14 @@ export interface ConceptoSearchResult {
   readonly noMatch: boolean;
 }
 
+/**
+ * Where the concept selector stands, as the capture form can observe it: no
+ * modality chosen, the modality chosen and its concept already resolved, the
+ * modality chosen and the typed text matching nothing (the create affordance
+ * is offered), or the modality chosen and the operator still typing.
+ */
+export type ConceptoAyudaEstado = 'sin_modalidad' | 'resuelto' | 'por_crear' | 'escribiendo';
+
 export function isConceptoNaturaleza(value: unknown): value is ConceptoNaturaleza {
   return typeof value === 'string' && (NATURALEZAS as readonly string[]).includes(value);
 }
@@ -175,4 +183,64 @@ export function conceptosPresentes(
   }
 
   return presentes;
+}
+
+/**
+ * The one reason the selector can be empty for reasons outside the operator's
+ * typing: the concept list is derived from the chosen modality, so without one
+ * there is no honest list to offer and the capture cannot proceed (design.md
+ * D2 — this is the constraint, not a defect).
+ */
+const SIN_MODALIDAD_HELP =
+  'La lista de conceptos depende de la modalidad "Dividir entre": sin elegirla, esta captura no puede continuar.';
+
+/**
+ * What the modality's nature means for the capture. The non-recoverable case is
+ * the one the operator reported as "the dropdown is missing": it creates no
+ * debt, so it can only offer non-recoverable concepts, and the recoverable
+ * concepts live behind the other three modalities. No catalog name appears here
+ * — the catalog is data and changes.
+ */
+const NATURALEZA_HELP: Record<ConceptoNaturaleza, string> = {
+  recuperable:
+    'Esta captura crea un adeudo recuperable, así que solo se ofrecen conceptos recuperables.',
+  no_recuperable:
+    'Esta modalidad no crea adeudo, así que solo se ofrecen conceptos no recuperables. Los conceptos de apoyo se ofrecen con Individual, Fullparch o Todos.',
+};
+
+/** What is left to do once the nature is resolved. Design D10: the concept never replaces the motivo. */
+const RESUELTO_HELP: Record<ConceptoNaturaleza, string> = {
+  recuperable: 'Naturaleza confirmada: recuperable. El motivo conserva el detalle.',
+  no_recuperable: 'Naturaleza confirmada: no recuperable. El motivo conserva el detalle.',
+};
+
+/**
+ * What is left to do while the concept is not resolved yet. "por_crear" must
+ * not read as if the concept already existed (nothing matched the typed text),
+ * and "escribiendo" asks for the classification instead of assuming one.
+ */
+const ESTADO_HELP: Record<'por_crear' | 'escribiendo', string> = {
+  por_crear:
+    'El concepto es obligatorio y todavía no existe en el catálogo: créalo aquí mismo para continuar.',
+  escribiendo: 'El concepto es obligatorio: escribe para buscar su clasificación en el catálogo.',
+};
+
+/**
+ * Operator-facing help for the concept selector (design.md D9/D10; spec
+ * `catalogo-conceptos`). Makes the modality → concept dependency explicit,
+ * which is what the operator could not see: the selector only offers the
+ * concepts of the chosen modality's nature, so with "Sin cargos" the only
+ * concepts on offer are the non-recoverable ones. PURE: no DOM, no database,
+ * no catalog — the text cannot name a concept, because concepts are data.
+ */
+export function conceptoAyudaText(
+  naturaleza: ConceptoNaturaleza | null,
+  estado: ConceptoAyudaEstado,
+): string {
+  // Both signals mean the same thing: there is no modality, so no list.
+  if (naturaleza === null || estado === 'sin_modalidad') return SIN_MODALIDAD_HELP;
+
+  const estadoHelp = estado === 'resuelto' ? RESUELTO_HELP[naturaleza] : ESTADO_HELP[estado];
+
+  return `${NATURALEZA_HELP[naturaleza]} ${estadoHelp}`;
 }

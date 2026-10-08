@@ -1,3 +1,4 @@
+import './style.css';
 import type { User } from '@supabase/supabase-js';
 import { createApp } from './app';
 import { checkSession, initAuth } from './features/auth';
