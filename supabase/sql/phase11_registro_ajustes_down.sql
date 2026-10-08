@@ -1,0 +1,27 @@
+-- ============================================================================
+-- Phase 11 DOWN — remove the adjustments ledger
+-- ajustes-y-clasificacion change, tasks.md task 2.1
+--
+-- STATUS: NOT applied. Proven to leave zero trace by a forward+down
+-- round-trip inside a transaction against production on 2026-10-06, before
+-- the forward migration was applied: the read-back after the round-trip was
+-- identical to the baseline (table absent, zero policies, zero columns).
+--
+-- INTENDED RUNNER: an operator, in the Supabase SQL editor or through the
+-- Management API. Reverses ONLY what phase11_registro_ajustes.sql added: the
+-- table and, with it, its RLS policies and indexes. Touches nothing else in
+-- the shared "arca" project.
+--
+-- WHAT IS LOST: every recorded adjustment. A forgiveness, a reassignment and
+-- an audited reversal would disappear from the record — but NOT from the
+-- `cargos` they already modified, because those were written by the single
+-- writer and are not reverted here. Dropping this table while the app is
+-- running would also make the reports and the member history lose their
+-- adjustments. Take a copy first if the history matters:
+--   select * from public.registro_ajustes order by created_at;
+--
+-- No fail-safe assertion is needed: `if exists` makes a re-run a no-op, and a
+-- plain `drop table` removes the table's own policies and indexes with it.
+-- ============================================================================
+
+drop table if exists public.registro_ajustes;

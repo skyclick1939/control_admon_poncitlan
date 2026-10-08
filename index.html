@@ -90,6 +90,7 @@
                         <a href="#solicitud" data-view="solicitud-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Solicitud de Apoyos</a>
                         <a href="#pagos" data-view="pagos-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Registro de Pagos</a>
                         <a href="#caja" data-view="caja-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Arca</a>
+                        <a href="#ajustes" data-view="ajustes-content" class="nav-link flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Ajustes</a>
                         <a href="#administracion" data-view="admin-content" id="nav-admin-link" class="nav-link view-hidden flex items-center px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md">Administración</a>
                     </nav>
                     <div class="p-4 border-t">
@@ -239,6 +240,21 @@
                                         <tbody id="member-history-pagos-body" class="bg-white divide-y divide-gray-200"></tbody>
                                     </table>
                                 </div>
+                                <h3 class="text-lg font-medium text-gray-800 mb-2 mt-6">Ajustes</h3>
+                                <div class="overflow-x-auto max-h-96">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observaciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="member-history-ajustes-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 
@@ -271,6 +287,34 @@
                                             <option value="TODOS">Todos</option>
                                             <option value="SIN_CARGOS">Sin cargos — absorbido por el Arca (no recuperable)</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="mt-6">
+                                    <label for="concepto_apoyo" class="block text-sm font-medium text-gray-700">Concepto (clasificación)</label>
+                                    <input type="text" id="concepto_apoyo" list="concepto-options" autocomplete="off" disabled placeholder="Escribe para buscar…" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-200">
+                                    <datalist id="concepto-options"></datalist>
+                                    <p id="concepto-help" class="mt-1 text-xs text-gray-500">Elige primero la división para ver los conceptos disponibles.</p>
+                                    <div id="concepto-create-panel" class="mt-3 p-4 bg-yellow-50 border border-yellow-300 rounded-lg view-hidden">
+                                        <p id="concepto-create-message" class="text-sm text-yellow-800 mb-2"></p>
+                                        <div class="flex flex-wrap items-end gap-3">
+                                            <div>
+                                                <label for="nuevo_concepto_naturaleza" class="block text-sm font-medium text-gray-700">Naturaleza del nuevo concepto</label>
+                                                <select id="nuevo_concepto_naturaleza" class="mt-1 block px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="recuperable">Recuperable (crea un adeudo que se devuelve)</option>
+                                                    <option value="no_recuperable">No recuperable (lo absorbe el Arca)</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" id="concepto-create-button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Crear concepto</button>
+                                        </div>
+                                        <div id="concepto-feedback" class="mt-2 text-sm"></div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="button" id="concepto-manage-toggle" class="text-sm font-medium text-indigo-600 hover:text-indigo-700 underline">Administrar conceptos del catálogo</button>
+                                        <div id="concepto-manage-panel" class="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg view-hidden">
+                                            <p class="text-sm text-gray-600 mb-2">Los conceptos nunca se eliminan: al desactivarlos dejan de ofrecerse para nuevas capturas, pero los movimientos que ya los usan conservan su clasificación.</p>
+                                            <ul id="concepto-manage-list" class="divide-y divide-gray-200"></ul>
+                                            <div id="concepto-manage-feedback" class="mt-2 text-sm"></div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="individual-members-list" class="mt-6 view-hidden">
@@ -310,6 +354,19 @@
                                             </div>
                                             <div id="pago-info-display" class="view-hidden">
                                                 <div>
+                                                    <label for="pago-naturaleza" class="block text-sm font-medium text-gray-700">Naturaleza del cobro</label>
+                                                    <select id="pago-naturaleza" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                        <option value="">-- Seleccione --</option>
+                                                        <option value="efectivo">Efectivo</option>
+                                                        <option value="transferencia">Transferencia</option>
+                                                        <option value="ajuste">Ajuste sin efectivo (va al módulo de Ajustes)</option>
+                                                    </select>
+                                                </div>
+                                                <div id="pago-ajuste-routing" class="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800 view-hidden">
+                                                    Este cobro no entra al Arca ni se registra como pago. Regístralo en
+                                                    <button type="button" id="pago-ir-ajustes" class="underline font-medium">Ajustes</button>
+                                                </div>
+                                                <div>
                                                     <label for="pago-monto" class="block text-sm font-medium text-gray-700">Pago o Abono ($)</label>
                                                     <input type="number" id="pago-monto" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                                 </div>
@@ -334,6 +391,12 @@
                                         <p id="deuda-total" class="text-3xl font-bold text-red-600">$0.00</p>
                                     </div>
                                     <h3 class="text-lg font-medium text-gray-800 mb-2">Desglose de Adeudos Pendientes</h3>
+                                    <div class="mb-4">
+                                        <label for="deuda-concepto-filter" class="block text-sm font-medium text-gray-700">Filtrar por concepto</label>
+                                        <select id="deuda-concepto-filter" class="mt-1 block w-full md:w-64 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="">Todos los conceptos</option>
+                                        </select>
+                                    </div>
                                     <div class="overflow-x-auto max-h-96">
                                         <table class="min-w-full divide-y divide-gray-200">
                                             <thead class="bg-gray-50 sticky top-0">
@@ -392,7 +455,94 @@
                                             <dt class="text-sm text-gray-500">Por Cobrar</dt>
                                             <dd id="caja-por-cobrar" class="text-xl font-bold text-gray-800">$0.00</dd>
                                         </div>
+                                        <h3 class="md:col-span-2 text-base font-semibold text-gray-700 mt-2">Fuera del balance</h3>
+                                        <div class="p-4 bg-amber-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Ajustes otorgados</dt>
+                                            <dd id="caja-ajustes-total" class="text-xl font-bold text-amber-700">$0.00</dd>
+                                            <dd id="caja-ajustes-detalle" class="text-sm text-gray-600"></dd>
+                                        </div>
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <dt class="text-sm text-gray-500">Posición neta (Arca + Por cobrar)</dt>
+                                            <dd id="caja-posicion-neta" class="text-xl font-bold text-gray-800">$0.00</dd>
+                                        </div>
+                                        <p class="md:col-span-2 text-xs text-gray-500">Ambas cifras quedan fuera del balance: condonar un adeudo no cambia el Arca, solo la posición neta.</p>
                                     </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="ajustes-content" class="page-content view-hidden">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Ajustes de adeudo</h1>
+                            <p class="text-sm text-gray-600 mb-6">Un ajuste reduce un adeudo sin efectivo: nunca entra al Arca y nunca se registra como un pago. Úsalo para condonar un adeudo, para un pago directo a un tercero o para ceder el adeudo a otro miembro.</p>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                                    <h2 class="text-xl font-semibold mb-4">Registrar un Ajuste</h2>
+                                    <form id="ajuste-form" method="post">
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="ajuste-tipo" class="block text-sm font-medium text-gray-700">Tipo de ajuste</label>
+                                                <select id="ajuste-tipo" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="condonacion">Condonación (se perdona el adeudo)</option>
+                                                    <option value="pago_tercero">Pago directo a un tercero (sin efectivo al Arca)</option>
+                                                    <option value="cesion">Cesión (el adeudo pasa a otro miembro)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="ajuste-miembro-select" class="block text-sm font-medium text-gray-700">Miembro con el adeudo</label>
+                                                <select id="ajuste-miembro-select" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">-- Seleccione un miembro --</option>
+                                                </select>
+                                            </div>
+                                            <div id="ajuste-contraparte-wrap" class="view-hidden">
+                                                <label for="ajuste-contraparte-select" class="block text-sm font-medium text-gray-700">Miembro que recibe el adeudo</label>
+                                                <select id="ajuste-contraparte-select" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">-- Seleccione un miembro --</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="ajuste-monto" class="block text-sm font-medium text-gray-700">Monto a ajustar ($)</label>
+                                                <input type="number" id="ajuste-monto" required min="0.01" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label for="ajuste-cargo-target" class="block text-sm font-medium text-gray-700">Cargo a reducir</label>
+                                                <select id="ajuste-cargo-target" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="">El más antiguo primero (FIFO)</option>
+                                                </select>
+                                                <p class="mt-1 text-xs text-gray-500">Sin selección, se reducen primero los adeudos más antiguos.</p>
+                                            </div>
+                                            <div>
+                                                <label for="ajuste-concepto" class="block text-sm font-medium text-gray-700">Concepto (opcional)</label>
+                                                <input type="text" id="ajuste-concepto" list="ajuste-concepto-options" autocomplete="off" placeholder="Escribe para buscar…" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                                <datalist id="ajuste-concepto-options"></datalist>
+                                            </div>
+                                            <div>
+                                                <label for="ajuste-observaciones" class="block text-sm font-medium text-gray-700">Observaciones</label>
+                                                <textarea id="ajuste-observaciones" rows="3" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                            </div>
+                                            <div id="ajuste-preview" class="text-sm text-gray-600"></div>
+                                            <div id="ajuste-feedback" class="text-sm"></div>
+                                            <button type="submit" id="save-ajuste-button" class="w-full mt-4 bg-amber-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-700 transition">Registrar Ajuste</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                                    <h2 class="text-xl font-semibold mb-4">Ajustes recientes</h2>
+                                    <div class="overflow-x-auto max-h-96">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50 sticky top-0">
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Miembro</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observaciones</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="ajustes-recientes-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>

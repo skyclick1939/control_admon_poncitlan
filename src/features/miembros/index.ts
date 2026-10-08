@@ -1,18 +1,28 @@
 import type { App } from '../../app';
 import { escapeHtml, setText } from '../../lib/escape';
 import { summarizeMemberHistory } from '../../lib/member-view';
-import { toCents, toPesos } from '../../lib/money';
+import { formatMXN, toCents, toPesos } from '../../lib/money';
 import type { CargoHistorial, Miembro, RegistroPago } from '../../lib/types';
 import { mapMiembroError } from './errors';
 import {
   addMember,
   deleteMember,
+  fetchAjustesMiembro,
   fetchCargosMiembro,
   fetchPagosMiembro,
   reactivateMember,
   retireMember,
 } from './repo';
+import type { AjusteMiembroHistorial } from './repo';
 import { copyToClipboard, generateMemberToken } from './token';
+
+/** Spanish label for each `registro_ajustes.tipo` — the history never shows the raw enum. */
+const AJUSTE_TIPO_LABEL: Record<AjusteMiembroHistorial['tipo'], string> = {
+  condonacion: 'Condonación',
+  cesion: 'Cesión',
+  pago_tercero: 'Pago a tercero',
+  reversa: 'Reversa',
+};
 
 /** Mirrors the original `fetchAndRenderMembers` + `handleAddMember`; extended in Phase 4 with retire/reactivate/delete (spec member-lifecycle), and in `portal-miembros` Part 1 with the per-member payment history panel (spec member-payment-history). */
 export function initMiembros(app: App): void {
@@ -28,6 +38,7 @@ export function initMiembros(app: App): void {
   const historyTotalPagado = document.getElementById('member-history-total-pagado')!;
   const historyCargosBody = document.getElementById('member-history-cargos-body')!;
   const historyPagosBody = document.getElementById('member-history-pagos-body')!;
+  const historyAjustesBody = document.getElementById('member-history-ajustes-body')!;
   const tokenRevealPanel = document.getElementById('member-token-reveal')!;
   const tokenRevealMessage = document.getElementById('member-token-reveal-message')!;
   const tokenRevealInput = document.getElementById('member-token-reveal-input') as HTMLInputElement;
@@ -68,13 +79,16 @@ export function initMiembros(app: App): void {
   function renderCargoHistoryRow(cargo: CargoHistorial): string {
     const fecha = cargo.registro_apoyos?.fecha ?? cargo.created_at;
     const motivo = cargo.registro_apoyos?.motivo ?? '—';
+    // The concept renders beside the motive, never replacing it (design.md D10);
+    // a pre-catalog row shows no concept rather than an invented one.
+    const conceptoNombre = cargo.registro_apoyos?.catalogo_conceptos?.nombre ?? '';
     const estadoLabel = cargo.estado === 'pagado' ? 'Pagado' : 'Pendiente';
     const estadoClass = cargo.estado === 'pagado' ? 'text-green-600' : 'text-red-600';
 
     return `
         <tr>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${new Date(fecha).toLocaleDateString()}</td>
-          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${escapeHtml(motivo)}</td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${escapeHtml(motivo)}${conceptoNombre ? `<span class="block text-xs text-gray-400">${escapeHtml(conceptoNombre)}</span>` : ''}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">$${toPesos(toCents(cargo.monto_original)).toFixed(2)}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">$${toPesos(toCents(cargo.monto_pendiente)).toFixed(2)}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm ${estadoClass}">${estadoLabel}</td>
@@ -87,6 +101,18 @@ export function initMiembros(app: App): void {
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${new Date(pago.fecha_pago).toLocaleDateString()}</td>
           <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">$${toPesos(toCents(pago.monto_pagado)).toFixed(2)}</td>
           <td class="px-4 py-2 text-sm text-gray-500">${escapeHtml(pago.observaciones ?? '—')}</td>
+        </tr>`;
+  }
+
+  /** One adjustment row. `monto` is the SIGNED movement, so a reduction reads negative and a restoration positive. */
+  function renderAjusteHistoryRow(ajuste: AjusteMiembroHistorial): string {
+    return `
+        <tr>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${new Date(ajuste.created_at).toLocaleDateString()}</td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${escapeHtml(AJUSTE_TIPO_LABEL[ajuste.tipo])}</td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">${formatMXN(toCents(ajuste.monto))}</td>
+          <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${escapeHtml(ajuste.catalogo_conceptos?.nombre ?? '')}</td>
+          <td class="px-4 py-2 text-sm text-gray-500">${escapeHtml(ajuste.observaciones ?? '—')}</td>
         </tr>`;
   }
 
@@ -107,9 +133,14 @@ export function initMiembros(app: App): void {
     setText(historyNickname, nickname);
     historyCargosBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando…</td></tr>`;
     historyPagosBody.innerHTML = '';
+    historyAjustesBody.innerHTML = '';
 
     try {
-      const [cargos, pagos] = await Promise.all([fetchCargosMiembro(memberId), fetchPagosMiembro(memberId)]);
+      const [cargos, pagos, ajustes] = await Promise.all([
+        fetchCargosMiembro(memberId),
+        fetchPagosMiembro(memberId),
+        fetchAjustesMiembro(memberId),
+      ]);
       if (openHistoryMemberId !== memberId) return; // a different member's panel was opened while this fetch was in flight
 
       const totals = summarizeMemberHistory(cargos, pagos);
@@ -127,11 +158,17 @@ export function initMiembros(app: App): void {
         pagos.length === 0
           ? `<tr><td colspan="3" class="text-center py-4 text-gray-500">Sin pagos registrados.</td></tr>`
           : pagos.map(renderPagoHistoryRow).join('');
+
+      historyAjustesBody.innerHTML =
+        ajustes.length === 0
+          ? `<tr><td colspan="5" class="text-center py-4 text-gray-500">Sin ajustes registrados.</td></tr>`
+          : ajustes.map(renderAjusteHistoryRow).join('');
     } catch (error) {
       if (openHistoryMemberId !== memberId) return;
       console.error('Error al cargar el historial del miembro:', error);
       historyCargosBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">No se pudo cargar el historial.</td></tr>`;
       historyPagosBody.innerHTML = '';
+      historyAjustesBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">No se pudo cargar el historial.</td></tr>`;
     }
   }
 

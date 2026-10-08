@@ -55,7 +55,11 @@ export async function deleteMember(id: string): Promise<void> {
 export async function fetchCargosMiembro(miembroId: string): Promise<CargoHistorial[]> {
   const { data, error } = await dbClient
     .from('cargos')
-    .select('id, monto_original, monto_pendiente, estado, created_at, registro_apoyos(motivo, fecha)')
+    // `catalogo_conceptos(nombre)` is the FK embed of the concept; it renders
+    // next to `motivo`, which is never replaced (design.md D10).
+    .select(
+      'id, monto_original, monto_pendiente, estado, created_at, registro_apoyos(motivo, fecha, catalogo_conceptos(nombre))',
+    )
     .eq('miembro_id', miembroId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -75,6 +79,38 @@ export async function fetchPagosMiembro(miembroId: string): Promise<RegistroPago
     .order('fecha_pago', { ascending: false });
   if (error) throw error;
   return data as RegistroPago[];
+}
+
+/** One `registro_ajustes` row for the member history, with its concept name. */
+export interface AjusteMiembroHistorial {
+  id: string;
+  grupo_id: string;
+  tipo: 'condonacion' | 'cesion' | 'pago_tercero' | 'reversa';
+  monto: number;
+  pendiente_resultante: number | null;
+  observaciones: string | null;
+  created_at: string;
+  catalogo_conceptos: { nombre: string } | null;
+}
+
+/**
+ * Every adjustment recorded against one member, newest first — the rows the
+ * history panel shows beside cargos and pagos. Read here because no feature may
+ * import another: the Ajustes feature owns the ledger's writer, and this is the
+ * member history's own read of it.
+ */
+export async function fetchAjustesMiembro(miembroId: string): Promise<AjusteMiembroHistorial[]> {
+  const { data, error } = await dbClient
+    .from('registro_ajustes')
+    .select(
+      'id, grupo_id, tipo, monto, pendiente_resultante, observaciones, created_at, catalogo_conceptos(nombre)',
+    )
+    .eq('miembro_id', miembroId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  // A to-one embed is an object or null at runtime, whatever the untyped client
+  // infers from the plural table name (fetchCargosMiembro precedent).
+  return data as unknown as AjusteMiembroHistorial[];
 }
 
 /**

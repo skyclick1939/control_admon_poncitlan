@@ -1,7 +1,70 @@
 import { dbClient } from '../../lib/supabase';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
+import type { Concepto, ConceptoNaturaleza } from '../../lib/conceptos';
 import type { Miembro } from '../../lib/types';
 import { saveEgreso } from '../caja/repo';
+
+/**
+ * Catalog reads and the in-line creation write (design.md D9). They live in
+ * this feature because the Apoyos form is the app's only capture surface — it
+ * records apoyos AND, through the "sin cargos" modality, egresos — and no
+ * feature may import another. `saveEgreso` receives only the resulting
+ * `concepto_id`, so the shared catalog gets one reader and one writer.
+ */
+export async function fetchConceptos(): Promise<Concepto[]> {
+  const { data, error } = await dbClient
+    .from('catalogo_conceptos')
+    .select('id, slug, nombre, naturaleza, activo')
+    .order('nombre', { ascending: true });
+  if (error) throw error;
+  return data as Concepto[];
+}
+
+export interface NuevoConceptoInput {
+  nombre: string;
+  /** `slugifyConcepto(nombre)`; `catalogo_conceptos.slug` is UNIQUE. */
+  slug: string;
+  naturaleza: ConceptoNaturaleza;
+  /** `auth.users.id` of the admin creating it, or `null` when unavailable. */
+  createdById: string | null;
+}
+
+/** Creates one catalog entry in place, so adding a concept never needs a migration or a second screen. */
+export async function createConcepto(input: NuevoConceptoInput): Promise<Concepto> {
+  const { data, error } = await dbClient
+    .from('catalogo_conceptos')
+    .insert({
+      nombre: input.nombre,
+      slug: input.slug,
+      naturaleza: input.naturaleza,
+      created_by: input.createdById,
+    })
+    .select('id, slug, nombre, naturaleza, activo')
+    .single();
+  if (error) throw error;
+  return data as Concepto;
+}
+
+/**
+ * Flips `catalogo_conceptos.activo` for one concept (spec "Concepts Are
+ * Deactivated, Never Deleted"). This is the whole of the catalog's lifecycle:
+ * there is deliberately NO delete writer, because `registro_apoyos.concepto_id`
+ * and `registro_egresos.concepto_id` are `ON DELETE NO ACTION`, so Postgres
+ * refuses to delete a concept that is in use — and that refusal is the intended
+ * behaviour, not a gap to route around. Deactivating keeps every historical
+ * classification intact while removing the concept from the capture selector
+ * (`searchConceptos`/`resolveConcepto` already skip `activo: false`).
+ */
+export async function setConceptoActivo(id: string, activo: boolean): Promise<Concepto> {
+  const { data, error } = await dbClient
+    .from('catalogo_conceptos')
+    .update({ activo })
+    .eq('id', id)
+    .select('id, slug, nombre, naturaleza, activo')
+    .single();
+  if (error) throw error;
+  return data as Concepto;
+}
 
 export interface NuevoApoyoInput {
   capturadoPorId: string;
@@ -11,6 +74,12 @@ export interface NuevoApoyoInput {
   montoPesos: number;
   tipoDivision: 'INDIVIDUAL' | 'FULLPARCH' | 'TODOS';
   miembros: Pick<Miembro, 'id'>[];
+  /**
+   * `catalogo_conceptos.id`. REQUIRED: a new apoyo must carry a concept
+   * (design.md D3), so it is a plain `string` here — the compiler is the
+   * second gate behind the form's validation.
+   */
+  conceptoId: string;
 }
 
 /**
@@ -29,6 +98,7 @@ export async function saveApoyo(input: NuevoApoyoInput): Promise<void> {
       motivo: input.motivo,
       monto_total: input.montoPesos,
       tipo_division: input.tipoDivision,
+      concepto_id: input.conceptoId,
     })
     .select()
     .single();
@@ -58,6 +128,8 @@ export interface SinCargosInput {
   fecha: string;
   motivo: string;
   montoPesos: number;
+  /** `catalogo_conceptos.id`. REQUIRED, and always `no_recuperable` — the form only offers that nature here (design.md D2/D3). */
+  conceptoId: string;
   /** `miembros.id` the expense is attributed to, or `null` for an un-attributed expense. */
   beneficiarioId: string | null;
   /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion. */

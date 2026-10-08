@@ -1,3 +1,4 @@
+import type { AjusteReporteRow, AjusteTipo } from '../../lib/ajustes';
 import type { CajaBreakdown } from '../../lib/caja';
 import { computeCaja } from '../../lib/caja';
 import { aggregateDebtByMember, type CargoPendienteRow } from '../../lib/debt-view.js';
@@ -14,6 +15,13 @@ export interface EgresoInput {
   motivo: string;
   /** Decimal MXN pesos; stored as `monto` (matching `registro_pagos.monto_pagado`). */
   montoPesos: number;
+  /**
+   * `catalogo_conceptos.id`. REQUIRED: a new egreso must carry a concept
+   * (design.md D3), and the Apoyos "sin cargos" review only offers
+   * `no_recuperable` ones (D2). `registro_egresos.concepto_id` stays nullable
+   * so a row recorded before the catalog existed reads as `null` (D3).
+   */
+  conceptoId: string;
   /** `miembros.id` the disbursement is attributed to, or `null` for an un-attributed expense. */
   beneficiarioId: string | null;
   /** `miembros.nickname` snapshot at capture, or `null` — survives member deletion. */
@@ -32,6 +40,7 @@ export async function saveEgreso(input: EgresoInput): Promise<void> {
     fecha: input.fecha,
     motivo: input.motivo,
     monto: input.montoPesos,
+    concepto_id: input.conceptoId,
     beneficiario_id: input.beneficiarioId,
     nombre_beneficiario: input.nombreBeneficiario,
   });
@@ -97,4 +106,24 @@ export async function fetchPorCobrar(): Promise<number> {
     .eq('estado', 'pendiente');
   if (error) throw error;
   return aggregateDebtByMember((data ?? []) as unknown as CargoPendienteRow[]).totalPendienteCents;
+}
+
+/** Every ledger row mapped for the "Ajustes otorgados" figure. The Ajustes feature owns the writer; this feature owns its own read because no feature may import another (module boundary). */
+export async function fetchAjustesReporte(): Promise<AjusteReporteRow[]> {
+  const { data, error } = await dbClient
+    .from('registro_ajustes')
+    .select('tipo, monto, catalogo_conceptos(nombre)');
+  if (error) throw error;
+
+  const filas = (data ?? []) as unknown as {
+    tipo: AjusteTipo;
+    monto: number;
+    catalogo_conceptos: { nombre: string } | null;
+  }[];
+
+  return filas.map((fila) => ({
+    tipo: fila.tipo,
+    montoCents: toCents(fila.monto),
+    conceptoNombre: fila.catalogo_conceptos?.nombre ?? null,
+  }));
 }

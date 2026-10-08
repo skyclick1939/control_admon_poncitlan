@@ -1,11 +1,13 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
-import { escapeHtml } from '../../lib/escape';
+import type { Concepto, ConceptoNaturaleza } from '../../lib/conceptos';
+import { resolveConcepto, searchConceptos, slugifyConcepto } from '../../lib/conceptos';
+import { escapeHtml, setText } from '../../lib/escape';
 import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
 import type { Miembro } from '../../lib/types';
 import { fetchMembers } from '../miembros/repo';
-import { saveApoyo, saveApoyoSinCargos } from './repo';
+import { createConcepto, fetchConceptos, saveApoyo, saveApoyoSinCargos, setConceptoActivo } from './repo';
 
 export interface ApoyosDeps {
   app: App;
@@ -27,8 +29,28 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   const motivoApoyoInput = document.getElementById('motivo_apoyo') as HTMLInputElement;
   const beneficiarioListDiv = document.getElementById('beneficiario-list')!;
   const apoyoBeneficiarioSelect = document.getElementById('apoyo-beneficiario') as HTMLSelectElement;
+  const conceptoApoyoInput = document.getElementById('concepto_apoyo') as HTMLInputElement;
+  const conceptoOptionsList = document.getElementById('concepto-options') as HTMLDataListElement;
+  const conceptoHelp = document.getElementById('concepto-help')!;
+  const conceptoCreatePanel = document.getElementById('concepto-create-panel')!;
+  const conceptoCreateMessage = document.getElementById('concepto-create-message')!;
+  const conceptoCreateButton = document.getElementById('concepto-create-button') as HTMLButtonElement;
+  const nuevoConceptoNaturalezaSelect = document.getElementById('nuevo_concepto_naturaleza') as HTMLSelectElement;
+  const conceptoFeedback = document.getElementById('concepto-feedback')!;
+  const conceptoManageToggle = document.getElementById('concepto-manage-toggle') as HTMLButtonElement;
+  const conceptoManagePanel = document.getElementById('concepto-manage-panel')!;
+  const conceptoManageList = document.getElementById('concepto-manage-list')!;
+  const conceptoManageFeedback = document.getElementById('concepto-manage-feedback')!;
+
+  /** Display label for each catalog nature. UI copy only; the value stays the database union. */
+  const NATURALEZA_LABEL: Record<ConceptoNaturaleza, string> = {
+    recuperable: 'Recuperable',
+    no_recuperable: 'No recuperable',
+  };
 
   let beneficiarios: Miembro[] = [];
+  /** The catalog as last read, plus any concept created in place during this session (design.md D9). */
+  let conceptos: Concepto[] = [];
 
   /**
    * Maps a selected member id to the persisted beneficiary pair (mirrors the
@@ -56,6 +78,154 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     } catch (error) {
       console.error('Error al cargar los beneficiarios:', error);
       // The "no beneficiary" option remains; egreso capture still works un-attributed.
+    }
+  }
+
+  /**
+   * The nature the chosen modality can honestly book (design.md D2): the three
+   * division modalities create cargos, so they offer only `recuperable`
+   * concepts; "sin cargos" creates none, so it offers only `no_recuperable`.
+   * Before a modality is chosen there is no honest answer, so the selector
+   * stays disabled and empty rather than offering the wrong nature. PURE.
+   */
+  function currentNaturaleza(): ConceptoNaturaleza | null {
+    if (tipoDivisionSelect.value === 'SIN_CARGOS') return 'no_recuperable';
+    if (tipoDivisionSelect.value) return 'recuperable';
+    return null;
+  }
+
+  /** Keeps the concept options and the in-line creation affordance in sync with the typed text and the modality. */
+  function refreshConceptoUi(): void {
+    const naturaleza = currentNaturaleza();
+    const query = conceptoApoyoInput.value.trim();
+
+    conceptoApoyoInput.disabled = naturaleza === null;
+
+    if (naturaleza === null) {
+      conceptoOptionsList.innerHTML = '';
+      conceptoCreatePanel.classList.add('view-hidden');
+      setText(conceptoHelp, 'Elige primero la división para ver los conceptos disponibles.');
+      return;
+    }
+
+    const resultado = searchConceptos(conceptos, query, naturaleza);
+    conceptoOptionsList.innerHTML = resultado.matches
+      .map((concepto) => `<option value="${escapeHtml(concepto.nombre)}"></option>`)
+      .join('');
+
+    const resuelto = resolveConcepto(conceptos, query, naturaleza);
+    const ofreceCreacion = query !== '' && resuelto === null;
+
+    conceptoCreatePanel.classList.toggle('view-hidden', !ofreceCreacion);
+    if (ofreceCreacion) {
+      setText(conceptoCreateMessage, `No existe "${query}". Créalo sin salir de aquí:`);
+      // Only one nature is honest for this modality, so the other option is
+      // blocked: it would create a concept the capture could not select
+      // (design.md D2, spec scenario "A new concept can be created in place").
+      nuevoConceptoNaturalezaSelect.value = naturaleza;
+      for (const option of Array.from(nuevoConceptoNaturalezaSelect.options)) {
+        option.disabled = option.value !== naturaleza;
+      }
+    }
+
+    if (resuelto) {
+      setText(
+        conceptoHelp,
+        naturaleza === 'recuperable'
+          ? 'Recuperable: crea un adeudo que se devuelve. El motivo conserva el detalle.'
+          : 'No recuperable: lo absorbe el Arca. El motivo conserva el detalle.',
+      );
+    } else if (ofreceCreacion) {
+      setText(conceptoHelp, 'El concepto es obligatorio. Créalo aquí mismo para continuar.');
+    } else {
+      setText(conceptoHelp, 'El concepto es obligatorio. Escribe para buscar en el catálogo.');
+    }
+  }
+
+  async function loadConceptos(): Promise<void> {
+    try {
+      conceptos = await fetchConceptos();
+    } catch (error) {
+      console.error('Error al cargar el catálogo de conceptos:', error);
+      // The selector stays empty and the save stays blocked: an unclassified
+      // capture is refused rather than silently misclassified (design.md D3).
+    }
+    renderConceptoManageList();
+    refreshConceptoUi();
+  }
+
+  /**
+   * Lists the whole catalog — active AND deactivated — with an Activar/
+   * Desactivar control per row. There is deliberately no delete control: the
+   * database refuses to delete a concept that is in use (spec "Concepts Are
+   * Deactivated, Never Deleted"). Rendered via `escapeHtml`, never raw.
+   */
+  function renderConceptoManageList(): void {
+    conceptoManageList.innerHTML =
+      conceptos.length === 0
+        ? '<li class="py-2 text-sm text-gray-500">No hay conceptos en el catálogo.</li>'
+        : conceptos
+            .map(
+              (concepto) => `
+        <li class="flex items-center justify-between gap-3 py-2">
+          <span class="text-sm ${concepto.activo ? 'text-gray-800' : 'text-gray-400'}">
+            ${escapeHtml(concepto.nombre)}
+            <span class="block text-xs text-gray-500">${NATURALEZA_LABEL[concepto.naturaleza]}</span>
+          </span>
+          <span class="flex items-center gap-2">
+            <span class="text-xs ${concepto.activo ? 'text-green-700' : 'text-gray-500'}">${concepto.activo ? 'Activo' : 'Desactivado'}</span>
+            <button type="button" data-concepto-id="${escapeHtml(concepto.id)}" class="text-xs px-3 py-1 rounded-md transition ${concepto.activo ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}">${concepto.activo ? 'Desactivar' : 'Reactivar'}</button>
+          </span>
+        </li>`,
+            )
+            .join('');
+  }
+
+  /**
+   * Flips one concept's active flag. Deactivating is not deleting: the row stays
+   * and its historical classifications with it. If the concept being deactivated
+   * is the one currently selected in the capture form, the selection is cleared
+   * so the form cannot submit a concept that is no longer offered.
+   */
+  async function handleToggleConcepto(button: HTMLButtonElement): Promise<void> {
+    const id = button.dataset.conceptoId;
+    const actual = id ? conceptos.find((concepto) => concepto.id === id) : undefined;
+    if (!id || !actual) return;
+
+    conceptoManageFeedback.textContent = '';
+    button.disabled = true;
+
+    try {
+      const actualizado = await setConceptoActivo(id, !actual.activo);
+
+      // Resolve BEFORE replacing the catalog: once the concept is inactive,
+      // `resolveConcepto` refuses it and the "same selection" check is lost.
+      const seleccionPrevia = resolveConcepto(
+        conceptos,
+        conceptoApoyoInput.value,
+        currentNaturaleza() ?? undefined,
+      );
+      if (!actualizado.activo && seleccionPrevia?.id === actualizado.id) {
+        conceptoApoyoInput.value = '';
+        conceptoFeedback.textContent = '';
+      }
+
+      conceptos = conceptos.map((concepto) => (concepto.id === actualizado.id ? actualizado : concepto));
+      renderConceptoManageList();
+      validateApoyoForm();
+      setText(
+        conceptoManageFeedback,
+        actualizado.activo
+          ? 'Concepto reactivado: vuelve a ofrecerse en el selector.'
+          : 'Concepto desactivado: no se elimina y la clasificación histórica se conserva.',
+      );
+      conceptoManageFeedback.className = 'mt-2 text-sm text-green-700';
+    } catch (error) {
+      console.error('Error al actualizar el concepto:', error);
+      conceptoManageFeedback.textContent = 'No se pudo actualizar el concepto. Intenta de nuevo.';
+      conceptoManageFeedback.className = 'mt-2 text-sm text-red-600';
+    } finally {
+      button.disabled = false;
     }
   }
 
@@ -92,17 +262,22 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
 
     validateApoyoForm();
     void populateBeneficiarios();
+    void loadConceptos();
   }
 
   function validateApoyoForm(): void {
+    refreshConceptoUi();
+
     const membersToCharge = getMembersToCharge();
     const monto = parseFloat(montoApoyoInput.value) || 0;
     const isSinCargos = tipoDivisionSelect.value === 'SIN_CARGOS';
+    const concepto = resolveConcepto(conceptos, conceptoApoyoInput.value, currentNaturaleza() ?? undefined);
     const isValid = Boolean(
       fechaApoyoInput.value &&
         motivoApoyoInput.value.trim() &&
         monto > 0 &&
         tipoDivisionSelect.value &&
+        concepto &&
         (isSinCargos || membersToCharge.length > 0),
     );
 
@@ -134,8 +309,18 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     const membersToCharge = getMembersToCharge();
     const monto = parseFloat(montoApoyoInput.value);
     const isSinCargos = tipoDivisionSelect.value === 'SIN_CARGOS';
+    const concepto = resolveConcepto(conceptos, conceptoApoyoInput.value, currentNaturaleza() ?? undefined);
 
     if (!currentUser) {
+      saveApoyoButton.disabled = false;
+      return;
+    }
+
+    if (!concepto) {
+      // The button is disabled without a concept; this is the second gate, in
+      // case a stale render ever let the submit through (design.md D3).
+      apoyoFeedback.textContent = 'El concepto es obligatorio: selecciona uno o créalo aquí mismo.';
+      apoyoFeedback.className = 'mt-4 text-sm text-red-600';
       saveApoyoButton.disabled = false;
       return;
     }
@@ -152,6 +337,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
           fecha: fechaApoyoInput.value,
           motivo: motivoApoyoInput.value.trim(),
           montoPesos: monto,
+          conceptoId: concepto.id,
           beneficiarioId,
           nombreBeneficiario,
         });
@@ -164,6 +350,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
           montoPesos: monto,
           tipoDivision: tipoDivisionSelect.value as 'INDIVIDUAL' | 'FULLPARCH' | 'TODOS',
           miembros: membersToCharge,
+          conceptoId: concepto.id,
         });
       }
 
@@ -183,10 +370,58 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
 
   solicitudForm.addEventListener('input', validateApoyoForm);
   membersCheckboxList.addEventListener('change', validateApoyoForm);
+  conceptoApoyoInput.addEventListener('input', () => {
+    conceptoFeedback.textContent = '';
+  });
+  nuevoConceptoNaturalezaSelect.addEventListener('change', () => {
+    conceptoFeedback.textContent = '';
+  });
+  conceptoCreateButton.addEventListener('click', async () => {
+    const naturaleza = currentNaturaleza();
+    const nombre = conceptoApoyoInput.value.trim();
+    if (!naturaleza || !nombre) return;
+
+    conceptoFeedback.textContent = '';
+    conceptoCreateButton.disabled = true;
+
+    try {
+      const nuevo = await createConcepto({
+        nombre,
+        slug: slugifyConcepto(nombre),
+        naturaleza,
+        createdById: getCurrentUser()?.id ?? null,
+      });
+      conceptos = [...conceptos, nuevo];
+      conceptoApoyoInput.value = nuevo.nombre;
+      renderConceptoManageList();
+      validateApoyoForm();
+    } catch (error) {
+      console.error('Error al crear el concepto:', error);
+      conceptoFeedback.textContent =
+        (error as { code?: string }).code === '23505'
+          ? 'Ya existe un concepto con ese nombre. Elígelo de la lista.'
+          : 'No se pudo crear el concepto. Intenta de nuevo.';
+      conceptoFeedback.className = 'mt-2 text-sm text-red-600';
+    } finally {
+      conceptoCreateButton.disabled = false;
+    }
+  });
   tipoDivisionSelect.addEventListener('change', () => {
     individualMembersListDiv.classList.toggle('view-hidden', tipoDivisionSelect.value !== 'INDIVIDUAL');
     beneficiarioListDiv.classList.toggle('view-hidden', tipoDivisionSelect.value !== 'SIN_CARGOS');
+    // The modality changed, so the nature it can book changed with it (D2): a
+    // concept chosen under the previous modality may belong to the other
+    // nature. Clearing it forces an explicit classification under the new one.
+    conceptoApoyoInput.value = '';
+    conceptoFeedback.textContent = '';
     validateApoyoForm();
+  });
+  conceptoManageToggle.addEventListener('click', () => {
+    conceptoManagePanel.classList.toggle('view-hidden');
+  });
+  conceptoManageList.addEventListener('click', (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-concepto-id]');
+    if (button) void handleToggleConcepto(button);
   });
   solicitudForm.addEventListener('submit', handleSaveApoyo);
 
