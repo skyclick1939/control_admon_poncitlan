@@ -1,6 +1,6 @@
 # Feature: el concepto se elige de un desplegable fijo
 
-**Status:** in progress
+**Status:** implemented and verified by tests; entrega en curso (PR y despliegue).
 **Owner:** club operator (project owner) · **Repo branch:** `feat/concepto-desplegable-fijo`
 **Related:** `openspec/changes/ajustes-y-clasificacion` (delta `catalogo-conceptos`, design D2/D9/D10)
 
@@ -29,14 +29,18 @@ Es una **decisión de producto del dueño del producto**, y sustituye al requisi
 
 ## Tasks
 
-- [ ] 1.1 Markup: sustituir el input+datalist por un `<select>` y añadir el campo de nombre dentro del panel de creación.
-- [ ] 1.2 Puras nuevas en `src/lib/conceptos.ts`: `conceptosOfrecidos` y `conceptoPorId`, con TDD (RED antes, GREEN después).
-- [ ] 1.3 `conceptoAyudaText`: estados nuevos (`sin_modalidad`, `sin_seleccion`, `resuelto`, `creando`) y conservar la prueba que impide que el copy incruste nombres del catálogo.
-- [ ] 1.4 Cablear el `<select>` en `src/features/apoyos/index.ts`: poblar por naturaleza, conservar la selección vigente, mostrar el panel de creación al elegir esa opción, resolver el `concepto_id` por id en la validación y en el guardado.
-- [ ] 1.5 Eliminar lo que quede sin llamador (`searchConceptos`, `resolveConcepto` y su tipo) junto con sus pruebas.
-- [ ] 1.6 `npx tsc --noEmit` limpio, `npx vitest run` verde, `npm run build` verde con el guard.
-- [ ] 1.7 Enmendar el delta `catalogo-conceptos` de OpenSpec: el requisito "Searchable Selector" pasa a "Fixed Dropdown with In-Line Creation", con la decisión del operador como razón.
+- [x] 1.1 Markup: `<select id="concepto_apoyo">` con sólo el marcador `-- Seleccione un concepto --`, y campo `#nuevo_concepto_nombre` dentro del panel de creación, antes del selector de naturaleza. Dos hunks, nada más.
+- [x] 1.2 Puras nuevas `conceptosOfrecidos` y `conceptoPorId` con TDD: **RED** 12 fallas (4 + 5 de las nuevas y 3 de copy), **GREEN** 47/47.
+- [x] 1.3 `conceptoAyudaText` con los cuatro estados nuevos; la prueba que deriva los seis nombres del catálogo desde la migración se conservó.
+- [x] 1.4 Cableado: poblar por naturaleza en orden de catálogo, conservar la selección vigente con `conceptoPorId`, panel de creación sólo con la opción de crear, `concepto_id` resuelto por id en validación y guardado, y la ruta de desactivación comparando el valor del `<select>`.
+- [x] 1.5 Eliminados `searchConceptos`, `ConceptoSearchResult` y `filterByNaturaleza` con sus 11 pruebas (no quedaba llamador). `resolveConcepto` **se conservó**: el módulo de Ajustes todavía lo llama (`src/features/ajustes/index.ts:357`), así que no era código muerto y borrarlo habría exigido tocar otro módulo. Comentario obsoleto corregido en `src/features/apoyos/repo.ts`.
+- [x] 1.6 `npx tsc --noEmit` exit 0; `npx vitest run` 16/16 archivos y **268/268**; `npm run build` exit 0 con el guard `postbuild` verde.
+- [x] 1.7 Delta enmendado: `specs/catalogo-conceptos/spec.md` (requisito "Fixed Dropdown with In-Line Creation", con la instrucción textual del operador como razón), `design.md` D9 y `proposal.md`. El rechazo anterior del `select` quedó registrado como **reversión**, no como refinamiento.
 - [ ] 1.8 Commit por unidad, PR, merge a `main`, verificación sobre producción.
+
+## Cobertura de clases tras el cambio
+
+Re-ejecutada con el markup nuevo: **224** tokens distintos, **15** sin regla, y los 15 son los ya conocidos (12 ganchos de selección de JS y 3 clases propias de los `<style>` embebidos). **Faltantes reales de utilidades de Tailwind: 0** — el markup nuevo no introdujo ninguna clase sin regla.
 
 ## Evidence required to close each task
 

@@ -38,22 +38,25 @@ Each concept MUST carry a nature: `recuperable` (the disbursement creates a debt
 - THEN that concept is not offered
 - AND the movement cannot be recorded as non-recoverable under it
 
-### Requirement: Searchable Selector with In-Line Creation
+### Requirement: Fixed Dropdown with In-Line Creation
 
-The concept field MUST be a searchable selector: typing MUST filter the catalog as the operator types, and the match MUST ignore case and accents. When the typed text matches no concept, the system MUST offer to create it without leaving the capture form, requiring a nature. The selector MUST NOT require a migration, a redeploy, or a second screen to add a concept.
+The concept field MUST be a single-choice dropdown populated from the catalog with the concepts of the chosen modality's nature, in catalog order, so that the operator selects a classification instead of typing one. The list MUST exclude deactivated concepts. The selector MUST offer to add a concept without leaving the capture form, requiring a name and a nature. The selector MUST NOT require a migration, a redeploy, or a second screen to add a concept.
 
-#### Scenario: Searching finds a concept
+**Why this replaced the previous searchable-selector requirement (product owner, 2026-10-08).** The operator asked for the fixed list explicitly: *"necesito que puntualmente en 'Concepto (clasificación)' se desplieguen las opciones para poder seleccionar, son conceptos FIJOS, para que más adelante se puedan aprovechar correctamente por filtros, por consultas… por eso quiero una lista desplegable de esas opciones ya determinadas."* With six concepts and at most four per nature, type-to-filter added no capability the list does not already give, and it hid the options behind an empty text field — which is exactly how the operator came to report that the dropdown was missing.
 
-- GIVEN a catalog with several concepts
-- WHEN the operator types a fragment of one, with or without accents
-- THEN the matching concepts are offered
-- AND the best match is offered first
+#### Scenario: The concepts are offered as a list
+
+- GIVEN a modality whose nature is recoverable
+- WHEN the operator opens the concept field
+- THEN every active recoverable concept is offered
+- AND a deactivated concept is not
+- AND no typing is required to see them
 
 #### Scenario: A new concept can be created in place
 
-- GIVEN the operator types a term that matches no concept
-- WHEN they choose to create it
-- THEN a new catalog entry is created with the nature they select
+- GIVEN the operator needs a concept that is not in the catalog
+- WHEN they choose to create it from the dropdown and give it a name and a nature
+- THEN a new catalog entry is created with that nature
 - AND the capture continues with that concept selected
 - AND no code change or migration was required
 

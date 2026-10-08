@@ -49,11 +49,13 @@ An adjustment is never deleted. A mistake is corrected by a `reversa` row that r
 
 The pago form gains a required "naturaleza del cobro": *Efectivo*, *Transferencia*, or *Ajuste sin efectivo*. Choosing the third routes the operator to the adjustments module and **does not** insert a `registro_pagos` row. A keyword trigger was rejected (fragile, and it would reject legitimate entries); a required choice is explicit and testable.
 
-### D9 — Searchable selector with in-line creation
+### D9 — Fixed dropdown with in-line creation
 
-Implementation: a native `input[list]` bound to a `datalist` fed from the catalog, plus a pure filter function in `src/lib/conceptos.ts` (accent-insensitive, substring, ranked: prefix matches first). Native avoids a new dependency and keeps the existing no-framework stack; the pure function is what the tests cover, since the datalist itself is browser behaviour. When the typed text matches no concept, an explicit "crear concepto *X*" affordance appears, prefilled, requiring a nature — so the operator never has to leave the form or ask for a migration.
+Implementation: a native `<select>` whose options are the active concepts of the chosen modality's nature, in catalog order, plus a final option that opens an in-line panel asking for a new concept's name and its nature. Two pure helpers in `src/lib/conceptos.ts` (`conceptosOfrecidos`, `conceptoPorId`) are what the tests cover, since the dropdown itself is browser behaviour. The operator never leaves the form and never needs a migration.
 
-*Rejected:* a React-style combobox library (new dependency, new build surface) and a plain `select` (no search, and the operator asked for search).
+**Amended 2026-10-08 by the product owner.** This decision originally chose a searchable `input[list]` bound to a `datalist`, and explicitly rejected a plain `select` — “no search, and the operator asked for search”. The operator has since reversed that, in his own words: *“necesito que puntualmente en ‘Concepto (clasificación)’ se desplieguen las opciones para poder seleccionar, son conceptos FIJOS, para que más adelante se puedan aprovechar correctamente por filtros, por consultas… por eso quiero una lista desplegable de esas opciones ya determinadas.”* It is recorded as a reversal rather than a refinement, because that is what it is: with six concepts and at most four per nature, typing to filter added nothing, and hiding the options behind an empty text field is precisely how the operator came to report the field as missing. The classification still comes from the catalog — the requirement that actually mattered — so filters and queries are unaffected. The adjustments surface still uses its searchable field; only the Apoyos surface was changed, at his request.
+
+*Rejected:* a React-style combobox library (new dependency, new build surface). *Superseded:* the searchable datalist; `searchConceptos` and its tests were deleted with it.
 
 ### D10 — Concept never replaces `motivo`
 
