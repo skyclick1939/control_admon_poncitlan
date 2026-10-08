@@ -11,6 +11,8 @@ import {
   isConceptoNaturaleza,
   matchesConceptoFiltro,
   normalizeConceptoText,
+  notaConceptosDisponibles,
+  ofreceAtajoApoyos,
   resolveConcepto,
   slugifyConcepto,
   type Concepto,
@@ -345,12 +347,73 @@ describe('conceptoAyudaText', () => {
   it('never names a catalog concept, on any state: the catalog is data and changes', () => {
     expect(CATALOGO_NOMBRES).toHaveLength(6);
 
-    for (const [naturaleza, estado] of PARES_UI) {
-      const text = normalizeConceptoText(conceptoAyudaText(naturaleza, estado));
+    // Both copy surfaces are checked here: the help text and the note, which is
+    // the one that quotes a COUNT. A count is not a name.
+    const notas = ([null, 'recuperable', 'no_recuperable'] as const).flatMap((naturaleza) =>
+      [0, 1, 2].map((disponibles) => notaConceptosDisponibles(naturaleza, disponibles)),
+    );
+    const copias: string[] = [
+      ...PARES_UI.map(([naturaleza, estado]) => conceptoAyudaText(naturaleza, estado)),
+      ...notas.filter((nota): nota is string => nota !== null),
+    ];
+
+    for (const copia of copias) {
+      const text = normalizeConceptoText(copia);
 
       for (const nombre of CATALOGO_NOMBRES) {
         expect(text).not.toContain(normalizeConceptoText(nombre));
       }
+    }
+  });
+});
+
+/**
+ * `notaConceptosDisponibles` is the line that answers the report the operator
+ * has now made three times: he opens the dropdown, sees two options and reads a
+ * broken field. The note says how many concepts the chosen modality offers, so
+ * the form explains itself instead of relying on whoever is on shift. It quotes
+ * a COUNT and never a catalog name. PURE.
+ */
+describe('notaConceptosDisponibles', () => {
+  it('is null with no modality: there is no list to describe yet', () => {
+    expect(notaConceptosDisponibles(null, 0)).toBeNull();
+    expect(notaConceptosDisponibles(null, 3)).toBeNull();
+  });
+
+  it('counts the recoverable concepts on offer, singular and plural', () => {
+    expect(notaConceptosDisponibles('recuperable', 1)).toBe(
+      '1 concepto recuperable disponible para esta modalidad.',
+    );
+    expect(notaConceptosDisponibles('recuperable', 2)).toBe(
+      '2 conceptos recuperables disponibles para esta modalidad.',
+    );
+  });
+
+  it('says the modality creates no debt and where the support concepts are offered', () => {
+    expect(notaConceptosDisponibles('no_recuperable', 1)).toBe(
+      'Esta modalidad no crea adeudo: solo sus 1 concepto no recuperable están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
+    );
+    expect(notaConceptosDisponibles('no_recuperable', 2)).toBe(
+      'Esta modalidad no crea adeudo: solo sus 2 conceptos no recuperables están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».',
+    );
+  });
+});
+
+/**
+ * `ofreceAtajoApoyos` decides the one-click switch offered next to the note: only
+ * the modality that creates no debt has support concepts hidden behind another
+ * modality, so only it can offer the shortcut. PURE.
+ */
+describe('ofreceAtajoApoyos', () => {
+  it('offers the shortcut only for the modality that creates no debt', () => {
+    expect(ofreceAtajoApoyos('no_recuperable')).toBe(true);
+    expect(ofreceAtajoApoyos('recuperable')).toBe(false);
+    expect(ofreceAtajoApoyos(null)).toBe(false);
+  });
+
+  it('returns a boolean, so it emits no copy and can name no catalog concept', () => {
+    for (const naturaleza of [null, 'recuperable', 'no_recuperable'] as const) {
+      expect(typeof ofreceAtajoApoyos(naturaleza)).toBe('boolean');
     }
   });
 });

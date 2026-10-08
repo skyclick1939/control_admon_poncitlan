@@ -227,3 +227,39 @@ export function conceptoAyudaText(
 
   return `${NATURALEZA_HELP[naturaleza]} ${SIN_SELECCION_HELP}`;
 }
+
+/**
+ * The one-line note under the concept field naming how many concepts the chosen
+ * modality offers, or null when no modality is chosen. It answers, inside the
+ * form itself, the report the operator has made three times — he opens the
+ * dropdown, sees only the two non-recoverable concepts of "Sin cargos" and
+ * concludes the field is broken. It quotes a COUNT and never a catalog name:
+ * the catalog is data and changes. PURE.
+ */
+export function notaConceptosDisponibles(
+  naturaleza: ConceptoNaturaleza | null,
+  disponibles: number,
+): string | null {
+  if (naturaleza === null) return null;
+
+  const plural = disponibles !== 1;
+
+  if (naturaleza === 'recuperable') {
+    return `${disponibles} ${
+      plural ? 'conceptos recuperables' : 'concepto recuperable'
+    } disponible${plural ? 's' : ''} para esta modalidad.`;
+  }
+
+  return `Esta modalidad no crea adeudo: solo sus ${disponibles} ${
+    plural ? 'conceptos no recuperables' : 'concepto no recuperable'
+  } están disponibles. Los conceptos de apoyo son recuperables y se ofrecen con Individual, Fullparch o Todos; si los necesitas absorbidos por el Arca, créalos aquí mismo con «Crear concepto nuevo…».`;
+}
+
+/**
+ * Whether the form should offer the one-click switch to a debt-creating
+ * modality. Only the modality that creates no debt hides the support concepts
+ * behind the other three, so only it can offer the shortcut. PURE.
+ */
+export function ofreceAtajoApoyos(naturaleza: ConceptoNaturaleza | null): boolean {
+  return naturaleza === 'no_recuperable';
+}

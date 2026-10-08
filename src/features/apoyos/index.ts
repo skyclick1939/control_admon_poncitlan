@@ -1,7 +1,14 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
 import type { Concepto, ConceptoNaturaleza } from '../../lib/conceptos';
-import { conceptoAyudaText, conceptoPorId, conceptosOfrecidos, slugifyConcepto } from '../../lib/conceptos';
+import {
+  conceptoAyudaText,
+  conceptoPorId,
+  conceptosOfrecidos,
+  notaConceptosDisponibles,
+  ofreceAtajoApoyos,
+  slugifyConcepto,
+} from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
 import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
@@ -31,6 +38,8 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   const apoyoBeneficiarioSelect = document.getElementById('apoyo-beneficiario') as HTMLSelectElement;
   const conceptoApoyoSelect = document.getElementById('concepto_apoyo') as HTMLSelectElement;
   const conceptoHelp = document.getElementById('concepto-help')!;
+  const conceptoNota = document.getElementById('concepto-nota')!;
+  const conceptoAtajoIndividual = document.getElementById('concepto-atajo-individual') as HTMLButtonElement;
   const conceptoCreatePanel = document.getElementById('concepto-create-panel')!;
   const conceptoCreateButton = document.getElementById('concepto-create-button') as HTMLButtonElement;
   const nuevoConceptoNombreInput = document.getElementById('nuevo_concepto_nombre') as HTMLInputElement;
@@ -146,8 +155,27 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
       conceptoApoyoSelect.innerHTML = CONCEPTO_PLACEHOLDER;
       conceptoCreatePanel.classList.add('view-hidden');
       setText(conceptoHelp, conceptoAyudaText(null, 'sin_modalidad'));
+      // No modality, so there is no honest list to describe and no shortcut to
+      // another modality: an empty, hidden note is what the operator must see.
+      setText(conceptoNota, '');
+      conceptoNota.classList.add('view-hidden');
+      conceptoAtajoIndividual.classList.add('view-hidden');
       return;
     }
+
+    // The operator has read this dropdown as broken three times: the note says
+    // how many concepts the chosen modality offers, so the form explains itself.
+    // Suppressed while the catalog is still loading, so a count of zero can
+    // never be read as "this modality has no concepts".
+    const nota =
+      conceptos.length > 0
+        ? notaConceptosDisponibles(naturaleza, conceptosOfrecidos(conceptos, naturaleza).length)
+        : null;
+    setText(conceptoNota, nota ?? '');
+    conceptoNota.classList.toggle('view-hidden', nota === null);
+    conceptoNota.classList.toggle('text-amber-700', naturaleza === 'no_recuperable');
+    conceptoNota.classList.toggle('text-gray-500', naturaleza !== 'no_recuperable');
+    conceptoAtajoIndividual.classList.toggle('view-hidden', !ofreceAtajoApoyos(naturaleza));
 
     const seleccionPrevia = conceptoPorId(conceptos, conceptoApoyoSelect.value, naturaleza);
     const crearSeleccionado = conceptoApoyoSelect.value === CREAR_CONCEPTO_VALUE;
@@ -469,7 +497,13 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
       conceptoCreateButton.disabled = false;
     }
   });
-  tipoDivisionSelect.addEventListener('change', () => {
+  /**
+   * Everything the modality change has to do, named so the one-click shortcut
+   * below can run the SAME path instead of a second copy of it: show the blocks
+   * that belong to the modality, clear the selection (the previous concept may
+   * belong to the other nature, so it is re-chosen explicitly) and re-validate.
+   */
+  function applyTipoDivisionChange(): void {
     individualMembersListDiv.classList.toggle('view-hidden', tipoDivisionSelect.value !== 'INDIVIDUAL');
     beneficiarioListDiv.classList.toggle('view-hidden', tipoDivisionSelect.value !== 'SIN_CARGOS');
     // The modality changed, so the nature it can book changed with it (D2): a
@@ -478,6 +512,17 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     conceptoApoyoSelect.value = '';
     conceptoFeedback.textContent = '';
     validateApoyoForm();
+  }
+
+  tipoDivisionSelect.addEventListener('change', applyTipoDivisionChange);
+  /**
+   * The shortcut offered next to the note on "Sin cargos": the support concepts
+   * are recoverable, so seeing them means switching to a modality that creates a
+   * debt. One click does exactly what choosing Individual by hand does.
+   */
+  conceptoAtajoIndividual.addEventListener('click', () => {
+    tipoDivisionSelect.value = 'INDIVIDUAL';
+    applyTipoDivisionChange();
   });
   conceptoManageToggle.addEventListener('click', () => {
     conceptoManagePanel.classList.toggle('view-hidden');
