@@ -1,7 +1,7 @@
 # Feature: coherencia de "sin cargar" — un solo mecanismo para el gasto que absorbe el Arca
 
-**Status:** código y datos aplicados; entrega en curso (PR y verificación en producción).
-**Owner:** club operator (product owner) · **Repo branch:** `fix/coherencia-sin-cargos`
+**Status:** **desplegado en producción 2026-10-08** (PR #8 → `56b43e3`, Production a las 03:59:01Z).
+**Owner:** club operator (product owner) · **Repo branch:** `fix/coherencia-sin-cargos`, merged into `main` as `56b43e3`
 **Related:** `supabase/sql/phase8_reclasificar_gasto_sin_cargar.sql` (el precedente), `openspec/specs/caja/spec.md`, `odd/tasks/selector-naturaleza-visibilidad.md`
 
 > **Figures are deliberately absent.** This repository is public.
@@ -48,7 +48,7 @@ Los cuatro propósitos de apoyo existen también como no recuperables: `Apoyo an
 - [x] 1.4 `npx tsc --noEmit` exit 0; `npx vitest run` 16/16 archivos y **280/280**; `npm run build` exit 0 con el guard verde; cobertura de clases 224 tokens con **0 faltantes reales**.
 - [x] 1.5 **P4 aplicado.** `supabase/sql/phase12_coherencia_sin_cargos.sql` (+ `_down`) creó los cuatro conceptos absorbidos. **Prueba de cero rastro**: forward + down en una sola llamada atómica dejó el estado previo exacto (6 conceptos, 2 no recuperables, miembro activo) y el read-back posterior lo confirmó. Read-back final: **10 conceptos activos** (4 recuperables + 6 no recuperables).
 - [x] 1.6 **P3 aplicado.** `Gastos_sin_cargar`: `status='interno'`, `activo=false`. No se borró nada: los 3 `registro_egresos` que lo referencian conservan su `nombre_beneficiario` denormalizado (verificado: 3 egresos intactos).
-- [ ] 1.7 Commit por unidad, PR, merge, verificación sobre producción.
+- [x] 1.7 PR **#8** mergeado a `main` como `56b43e3`. Verificación sobre el HTML y el bundle **servidos**: `¿Quién lo paga?` presente, `Nadie: gasto sin cargar` presente, `Un solo miembro` presente, `Dividir entre` **0**, y el bundle `main-Dz4V9E2z.js` con el copy nuevo y **sin** el viejo. `/vista/` 200.
 - [x] 1.8 **Lista de revisión del backfill producida, ninguna fila escrita** (spec `catalogo-conceptos`, D4: el operador aprueba o corrige cada propuesta antes de que se escriba una sola fila). Los 3 egresos siguen con `concepto_id` nulo.
 
 ## Evidence required to close each task
