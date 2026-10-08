@@ -1,7 +1,7 @@
 # Feature: reparación del arca y ajustes de adeudo
 
-**Status:** planning (documented only — no code, no SQL applied)
-**Owner:** club operator (project owner) · **Repo branch:** `docs/reparacion-y-ajustes-arca`
+**Status:** E1, E2 and E3 implemented, applied live, **merged and deployed to production 2026-10-08** (PR #4 → `1cad01a`). Open: the operator's browser checks and the 66-row concept backfill.
+**Owner:** club operator (project owner) · **Repo branch:** `docs/reparacion-y-ajustes-arca`, merged into `main` as `1cad01a`
 **OpenSpec changes:** `reparacion-rodada-san-luis` (E1) · `ajustes-y-clasificacion` (E2 + E3)
 **Authoritative task list:** `openspec/changes/*/tasks.md`. This document is the harness-level tracker, not a duplicate spec.
 
@@ -43,9 +43,9 @@ A chapter trip was funded by the members who did not attend (one fixed contribut
 - [x] 2.1 Catálogo + RLS + semilla — **aplicado y verificado en vivo**: 6 conceptos con su naturaleza, `concepto_id` en ambos libros, RLS con política `is_admin()`, cero permisos a `anon`, 2 índices. Con dos pruebas de cero rastro antes de aplicar (forward solo, y round-trip forward+down)
 - [x] 2.2 Columnas de concepto + **propuestas** de backfill — la clasificación de las 66 filas históricas sigue **PENDIENTE de tu revisión** (los 10 "alta" incluyen al menos 2 falsos positivos demostrables)
 - [x] 2.3 Selector con búsqueda dinámica + alta en línea — 26 pruebas nuevas, suite 216/216, `tsc` limpio; **el comportamiento en navegador NO se verificó**
-- [ ] 2.4 Mostrar el concepto en pagos e historial del miembro — implementado, **sin verificar en navegador**; el portal de miembros quedó fuera de alcance por decisión propia
-- [ ] 2.5 Filtrar movimientos por concepto — hueco declarado por el escritor: el concepto se guarda y se muestra, pero no hay control de filtrado (tarea 1.7)
-- [ ] 2.6 Desactivar conceptos desde la UI — hoy `activo` solo se cambia por SQL (tarea 1.8)
+- [x] 2.4 Mostrar el concepto en pagos e historial del miembro — implementado (el portal de miembros quedó fuera de alcance por decisión propia); **el render NO se verificó en navegador**
+- [x] 2.5 Filtrar movimientos por concepto — implementado como el filtro del cuadro de deudas del formulario de pagos (`matchesConceptoFiltro` / `conceptosPresentes`, control `select#deuda-concepto-filter`); **sin verificar en navegador** (tarea 1.7)
+- [x] 2.6 Desactivar conceptos desde la UI — implementado: `setConceptoActivo(id, activo)` y el panel "Administrar conceptos del catálogo", sin control de borrado a propósito (tarea 1.8)
 
 ### E2 — Módulo de ajustes (dentro de `ajustes-y-clasificacion`)
 
@@ -81,5 +81,24 @@ A chapter trip was funded by the members who did not attend (one fixed contribut
 2. **A retired member with a pending balance disappears from "Por cobrar" and the public ranking** (the `activo=false` exclusion in `src/lib/debt-view.ts`). Decision pending (task 3.6).
 3. **Legacy outliers stay untouched**: `cargos` rows carrying sub-cent residues, `registro_apoyos` rows whose total does not equal the sum of their cargos (one materially, a legacy double charge), and `registro_pagos` rows with no author.
 4. **The retirement warning is a spec requirement that is NOT implemented** (`reparacion-rodada-san-luis`, `member-lifecycle` delta; task 2.3): retiring a member with a balance must warn the operator that the balance stops appearing in "Por cobrar". The retire flow says nothing today. Nothing can be archived until it lands or the requirement is withdrawn.
-5. **E2 was never started, and its ledger shape is now DECIDED** in `ajustes-y-clasificacion/design.md` D5 and D7 — one row per affected cargo, tied by a `grupo_id`, with a cession creating a second cargo for the receiver and a reversal that restores each row's own delta. Read those two decisions before writing `phase11`.
+5. **E2 is implemented, applied and deployed** (2026-10-08). Its ledger shape is fixed by `ajustes-y-clasificacion/design.md` D5 and D7 — one row per affected cargo, tied by a `grupo_id`, with a cession creating a second cargo for the receiver and a reversal that restores each row's own delta. Read those two decisions before changing `phase11`. **`registro_ajustes` still holds 0 rows**: the writer has never run against real data.
 6. **The public-repository rule**: no real financial figures in committed artifacts. Restoration values live in private project memory; the script derives them from the database instead of hardcoding them.
+
+## Despliegue a producción (2026-10-08)
+
+Lo que faltaba no era un ajuste de Vercel: la rama **no tenía upstream y no existía en el remoto**, así que el insumo del build nunca llegó a GitHub y Vercel no tenía nada que construir (el último deployment de Production registrado era `a456172` = `origin/main`, del 2026-09-15). Se publicó en tres pasos y ninguno de ellos es una palanca del panel de Vercel:
+
+1. Push de la rama con el PAT clásico de `skyclick1939` (el identity por defecto de la máquina, `consultores-orion`, no tiene escritura en este repo).
+2. PR **#4**, con el cuerpo estructurado como las 17 unidades de trabajo.
+3. **Merge a `main`** como `1cad01a` (merge commit real, no squash: la convención del repo, igual que los PR #1–#3). `main` no tiene branch protection ni rulesets, así que el único gate era la decisión humana de publicar. **Nunca promover un preview a Production.**
+
+Vercel construyó `main` y registró un deployment **Production** de `1cad01a` a las 2026-10-08T02:40:01Z. Lectura de verificación sobre la superficie viva, no sobre un build local:
+
+- `/` responde 200 con 58,697 bytes, 12 ocurrencias de `ajustes` y 23 de `concepto` (antes del deploy: 41,972 bytes, 0 y 0).
+- El bundle servido `/assets/main-DDMBCs89.js` contiene `registro_ajustes`, `catalogo_conceptos`, `condonacion`, `pago_tercero` y `deuda-concepto-filter`; el shell expone la entrada de navegación `#ajustes`.
+- `/vista/` 200 y `/api/debt-view` 200.
+- Base de datos: `catalogo_conceptos` y `registro_ajustes` existen, cada una con una sola política `ALL` (`admins_all_*`); `anon` no tiene privilegio sobre ninguna (una sonda REST devuelve `42501 permission denied`, lo que además prueba que PostgREST las tiene en su caché de esquema); las dos columnas `concepto_id` son nullable; y la FK `registro_ajustes_contraparte_miembro_id_fkey` — el nombre exacto que el código embebe — existe.
+- `catalogo_conceptos` conserva sus 6 conceptos sembrados, todos activos. **El concepto `rodada` no existe todavía**, así que el backfill de 66 filas sigue sin poder arrancar.
+- `registro_ajustes` con 0 filas.
+
+**Sin verificar, y sólo el operador puede cerrarlo:** las cinco comprobaciones de navegador (tareas 1.3–1.8). Este entorno no tiene sesión viva, así que nada de este despliegue se validó haciendo clic en la interfaz.

@@ -50,6 +50,21 @@ Also measured on 2026-10-08: `main` has **no branch protection and no rulesets**
 
 **Five pitfalls, every one of them already paid for.** (a) Never wrap a file that contains its own `begin;`/`commit;` inside another transaction to "test" it — the inner `commit;` commits for real; strip them and supply your own. (b) Never launch a writer while a native review is frozen: its new files drift the untracked inventory and block the correction route. (c) Run `git fetch` before inspecting a candidate; a stale `origin/main` inflated one candidate from 15 to 33 paths and tripped the lens context budget. (d) This repository is PUBLIC: no balances, no per-member totals, no derived figures — only the amounts a reversible `_down` cannot avoid. (e) The Supabase Management token lives in Engram (topic `config/control-admon-poncitlan-access`, obs #2882) and the project is SHARED: every script is strictly scoped to this app's own tables and additive.
 
+## Deployed 2026-10-08 — the concept catalog and the adjustments ledger are live in production
+
+PR **#4** (`docs/reparacion-y-ajustes-arca`) was opened and **merged to `main`** as `1cad01a`, a real merge commit, so all 17 work-unit commits landed (the repo's convention — PRs #1–#3 merged the same way). Vercel built `main` and recorded a **Production** deployment of `1cad01a` at 2026-10-08T02:40:01Z. The previous state — `main` frozen at `a456172` since 2026-09-15 with the branch unpublished — is the whole reason the operator could not see any of this work in Vercel.
+
+Read-back from the live production surface, not from a local build:
+
+- `/` responds 200 with 58,697 bytes, **12** occurrences of `ajustes` and **23** of `concepto`; the pre-deploy artifact was 41,972 bytes with 0 and 0.
+- The shipped bundle `/assets/main-DDMBCs89.js` contains `registro_ajustes`, `catalogo_conceptos`, `condonacion`, `pago_tercero` and `deuda-concepto-filter`, and the shell exposes a `#ajustes` navigation entry.
+- `/vista/` 200 and `/api/debt-view` 200 — the public surface and the service-role read path still work.
+- Database: `catalogo_conceptos` and `registro_ajustes` exist with exactly one `ALL` policy each (`admins_all_*`), `anon` holds no privilege on either (a REST probe returns `42501 permission denied`, which also proves PostgREST has both in its schema cache), both `concepto_id` columns are nullable, and the FK `registro_ajustes_contraparte_miembro_id_fkey` — the exact name the code embeds — exists.
+- `catalogo_conceptos` holds its 6 seeded concepts, all active. **No `rodada` concept exists yet**, so the 66-row backfill still cannot start.
+- `registro_ajustes` holds **0 rows**: the adjustments writer has never run against real data.
+
+**Still unverified, and only the operator can close it**: the five browser checks (tasks 1.3–1.8). This environment has no live session, so nothing in this deploy was validated by clicking the interface.
+
 ## What this project is
 
 A club/organization expense-tracking app ("Control de Gastos Poncitlán"), being migrated to Vite + TypeScript (see below), live on Vercel, backed by a Supabase Postgres project named "arca" (ref `qjswicjxwsbwnxrrowsi`) that is **shared** with an unrelated system (a different, separate "arca" national-chapters project, still in approval — never touch its tables, listed by name in the Facts section below).
