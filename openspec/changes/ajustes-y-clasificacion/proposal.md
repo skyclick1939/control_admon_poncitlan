@@ -8,13 +8,13 @@ The application can reduce a member's debt through exactly one action: `aplicarP
 
 Separately, every movement is classified only by free prose in `motivo`, so nothing can be found, filtered, or totalled by purpose.
 
-This change adds the two missing pieces: **an adjustments ledger** (a way to reduce or move a debt without pretending it was cash) and **a concept catalog with a searchable selector** (a way to say what a movement was for). It is deliberately two capabilities in one change because the adjustment form needs the catalog to say *what kind* of adjustment it is — the catalog must land first.
+This change adds the two missing pieces: **an adjustments ledger** (a way to reduce or move a debt without pretending it was cash) and **a concept catalog with a selector that chooses from a fixed list** (a way to say what a movement was for). It is deliberately two capabilities in one change because the adjustment form needs the catalog to say *what kind* of adjustment it is — the catalog must land first.
 
 ## Scope
 
 ### In Scope
 - `catalogo_conceptos` (name, nature, active flag) + `concepto_id` on `registro_apoyos` and `registro_egresos`.
-- A required, searchable concept selector on both capture surfaces, with in-line creation of a new concept, so adding one never needs a migration.
+- A required concept selector on both capture surfaces, with in-line creation of a new concept, so adding one never needs a migration. The Apoyos surface offers the active concepts for the chosen modality as a **fixed dropdown** (amended 2026-10-08, design D9); the adjustments surface still uses the searchable field.
 - A nature rule that makes a misclassification impossible: non-recoverable concepts are not selectable on the modality that creates debts, and recoverable concepts are not selectable on the modality that creates none.
 - A guided backfill of the existing rows, reviewed by the operator.
 - `registro_ajustes`: forgiveness, reassignment between members, and direct payment to a third party; a single writer; the arca formula untouched.
@@ -32,7 +32,7 @@ This change adds the two missing pieces: **an adjustments ledger** (a way to red
 ## Capabilities
 
 ### New Capabilities
-- `catalogo-conceptos`: the catalog, its nature rule, the searchable selector, in-line creation, and the backfill.
+- `catalogo-conceptos`: the catalog, its nature rule, the selector, in-line creation, and the backfill.
 - `ajustes-adeudo`: the adjustments ledger, its single writer, the FIFO-or-targeted application, the paired reassignment, and the reversal.
 
 ### Modified Capabilities
