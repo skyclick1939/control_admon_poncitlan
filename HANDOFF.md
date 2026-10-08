@@ -65,6 +65,18 @@ Read-back from the live production surface, not from a local build:
 
 **Still unverified, and only the operator can close it**: the five browser checks (tasks 1.3–1.8). This environment has no live session, so nothing in this deploy was validated by clicking the interface.
 
+## Coherencia del gasto que absorbe el Arca (2026-10-08)
+
+El operador detectó que dos caminos registraban el mismo evento y pidió coherencia. Tenía razón, y el camino sobrante era el dañino.
+
+**Los dos caminos.** El diseñado es `registro_apoyos.tipo_division = 'SIN_CARGOS'`, que escribe un `registro_egresos` y **no crea deuda**. El heredado cargaba un `cargos` real al pseudo-miembro de contabilidad `Gastos_sin_cargar` (`status='interno'`), creando **un por cobrar que nadie va a pagar** — exactamente lo que `phase8_reclasificar_gasto_sin_cargar.sql` tuvo que reparar a mano una vez. `aggregateDebtByMember` y `getMembersToCharge` ya trataban al interno como no pagador; lo que faltaba era sacarlo de **las listas donde se elige a quién cobrar**, porque `activeMiembros()` filtraba sólo por `activo`.
+
+**Aplicado.** `supabase/sql/phase12_coherencia_sin_cargos.sql` (+ `_down`) se corrió con prueba de cero rastro (forward + down en una llamada atómica dejó el estado previo exacto, verificado por read-back independiente). Resultado en vivo: **10 conceptos activos** (4 recuperables + 6 no recuperables, incluyendo los cuatro propósitos de apoyo en su naturaleza absorbida) y **`Gastos_sin_cargar` con `activo=false`**. No se borró ninguna fila: los 3 `registro_egresos` que lo referencian conservan su `nombre_beneficiario` denormalizado.
+
+**En el código.** Pura nueva `miembrosSeleccionables()` (`activo && status !== 'interno'`) aplicada en las cinco superficies donde se elige a quién cobrar o pagar. Y el control que decía `Dividir entre` pasó a **`¿Quién lo paga?`** con opciones que contestan esa pregunta, incluida `Nadie: gasto sin cargar (lo absorbe el Arca)`. Los valores de base (`INDIVIDUAL`/`FULLPARCH`/`TODOS`/`SIN_CARGOS`) **no se tocaron**.
+
+**Pendiente y deliberado.** El **backfill de los 3 egresos sin concepto** queda como *propuesta* (la spec exige aprobación del operador antes de escribir una fila); la lista está en `odd/tasks/coherencia-sin-cargos.md`. Y la separación estructural de `Cubre` frente a `Dividir entre` queda para después, con auditoría: toca la regla de dinero.
+
 ## What this project is
 
 A club/organization expense-tracking app ("Control de Gastos Poncitlán"), being migrated to Vite + TypeScript (see below), live on Vercel, backed by a Supabase Postgres project named "arca" (ref `qjswicjxwsbwnxrrowsi`) that is **shared** with an unrelated system (a different, separate "arca" national-chapters project, still in approval — never touch its tables, listed by name in the Facts section below).

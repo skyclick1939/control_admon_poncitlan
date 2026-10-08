@@ -1,6 +1,6 @@
 # Feature: coherencia de "sin cargar" — un solo mecanismo para el gasto que absorbe el Arca
 
-**Status:** in progress
+**Status:** código y datos aplicados; entrega en curso (PR y verificación en producción).
 **Owner:** club operator (product owner) · **Repo branch:** `fix/coherencia-sin-cargos`
 **Related:** `supabase/sql/phase8_reclasificar_gasto_sin_cargar.sql` (el precedente), `openspec/specs/caja/spec.md`, `odd/tasks/selector-naturaleza-visibilidad.md`
 
@@ -42,14 +42,14 @@ Los cuatro propósitos de apoyo existen también como no recuperables: `Apoyo an
 
 ## Tasks
 
-- [ ] 1.1 `miembrosSeleccionables` con TDD en `src/lib/miembros.ts` + `miembros.test.ts`.
-- [ ] 1.2 Aplicarla en `apoyos/index.ts` (lista de miembros y beneficiario), `pagos/index.ts` y `ajustes/index.ts`.
-- [ ] 1.3 Renombrar el campo y sus opciones en `index.html`, y alinear el copy de `conceptos.ts` que nombra `Dividir entre` (incluida la prueba que lo afirma).
-- [ ] 1.4 `npx tsc --noEmit`, `npx vitest run`, `npm run build` verdes; cobertura de clases de Tailwind sin faltantes reales.
-- [ ] 1.5 P4: crear los cuatro conceptos no recuperables (SQL aditivo y reversible, con su sentencia de reversa registrada).
-- [ ] 1.6 P3: retirar el pseudo-miembro (`activo=false`), con su reversa registrada.
+- [x] 1.1 `miembrosSeleccionables` con TDD en `src/lib/miembros.ts` + `miembros.test.ts`: **RED** 7 fallas (`miembrosSeleccionables is not a function`) → **GREEN** 10/10. Cubre: excluye `interno` aunque esté activo, excluye retirados, conserva fullparch y prospecto, preserva el orden, no muta, y concuerda con `activeMiembros` en todo menos el interno.
+- [x] 1.2 Aplicada en las cinco superficies: lista de miembros del apoyo, su beneficiario (el comentario que decía "internal members included" se corrigió), `getMembersToCharge` para INDIVIDUAL, el selector de Pagos y los dos de Ajustes. `activeMiembros` sigue exportada e intacta.
+- [x] 1.3 `Dividir entre` → **`¿Quién lo paga?`**; opciones: `Un solo miembro`, `Sólo los Fullparch`, `Todos los miembros`, **`Nadie: gasto sin cargar (lo absorbe el Arca)`**. Los valores de base `INDIVIDUAL`/`FULLPARCH`/`TODOS`/`SIN_CARGOS` **no se tocaron**. Copy de `conceptos.ts` alineado (incluida `NATURALEZA_HELP` y el texto estático de `#concepto-help`). Cero referencias residuales a "Dividir entre".
+- [x] 1.4 `npx tsc --noEmit` exit 0; `npx vitest run` 16/16 archivos y **280/280**; `npm run build` exit 0 con el guard verde; cobertura de clases 224 tokens con **0 faltantes reales**.
+- [x] 1.5 **P4 aplicado.** `supabase/sql/phase12_coherencia_sin_cargos.sql` (+ `_down`) creó los cuatro conceptos absorbidos. **Prueba de cero rastro**: forward + down en una sola llamada atómica dejó el estado previo exacto (6 conceptos, 2 no recuperables, miembro activo) y el read-back posterior lo confirmó. Read-back final: **10 conceptos activos** (4 recuperables + 6 no recuperables).
+- [x] 1.6 **P3 aplicado.** `Gastos_sin_cargar`: `status='interno'`, `activo=false`. No se borró nada: los 3 `registro_egresos` que lo referencian conservan su `nombre_beneficiario` denormalizado (verificado: 3 egresos intactos).
 - [ ] 1.7 Commit por unidad, PR, merge, verificación sobre producción.
-- [ ] 1.8 Producir la lista de revisión del backfill de los 3 egresos y entregarla al operador **sin aplicarla**.
+- [x] 1.8 **Lista de revisión del backfill producida, ninguna fila escrita** (spec `catalogo-conceptos`, D4: el operador aprueba o corrige cada propuesta antes de que se escriba una sola fila). Los 3 egresos siguen con `concepto_id` nulo.
 
 ## Evidence required to close each task
 
@@ -58,6 +58,16 @@ Los cuatro propósitos de apoyo existen también como no recuperables: `Apoyo an
 - 1.3: los rótulos nuevos en el HTML servido y el copy de `conceptos.ts` alineado.
 - 1.5/1.6: read-back de la base (conceptos creados con su naturaleza; `activo=false` en el miembro) y la sentencia de reversa de cada uno.
 - 1.8: la lista propuesta, sin ninguna escritura.
+
+## Backfill propuesto para los 3 egresos sin concepto (NO aplicado)
+
+La spec exige revisión del operador antes de escribir una sola fila, así que esto es una **propuesta**:
+
+| id | fecha | motivo | concepto propuesto |
+|---|---|---|---|
+| `8a7c3e10…0008` | 2026-09-15 | "Acumulativo Gastos sin cargar absorbido por la ARCA … Aporte Aniv. San Luis y … Aporte accidente Diego DF …" | **Requiere decisión**: son dos propósitos en una sola fila (`Apoyo aniversario (absorbido por el Arca)` + `Apoyo a accidentados (absorbido por el Arca)`). Clasificar con uno solo sería inventar. |
+| `64da62d2…` | 2026-09-19 | "Apoyo a Marlboro Regional Bajío para su cirugía (cáncer)" | `Apoyo a accidentados (absorbido por el Arca)` — a confirmar por el operador |
+| `a474dbb5…` | 2026-09-21 | "Aniversario Morelos" | `Apoyo aniversario (absorbido por el Arca)` |
 
 ## Open risks
 
