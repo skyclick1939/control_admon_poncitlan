@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   NATURALEZAS,
+  conceptoAyudaText,
   conceptosPresentes,
   filterByNaturaleza,
   isConceptoNaturaleza,
@@ -13,6 +14,8 @@ import {
   searchConceptos,
   slugifyConcepto,
   type Concepto,
+  type ConceptoAyudaEstado,
+  type ConceptoNaturaleza,
 } from './conceptos';
 
 /**
@@ -264,6 +267,108 @@ describe('slugifyConcepto', () => {
   it('drops punctuation and collapses separator runs', () => {
     expect(slugifyConcepto('Apoyo (legal) -- 2026')).toBe('apoyo-legal-2026');
     expect(slugifyConcepto("Apoyo   a   accidentados'")).toBe('apoyo-a-accidentados');
+  });
+});
+
+/**
+ * `conceptoAyudaText` is the single source of the concept selector's help copy
+ * (design.md D9/D10). The operator reported that the support concepts seemed
+ * missing; the copy is what makes the modality → concept dependency explicit,
+ * so the assertion is on what the operator actually reads, not on an internal
+ * label. The catalog names are read from the migration rather than copied into
+ * this test: the catalog is data and changes, and the copy may never name it.
+ */
+describe('conceptoAyudaText', () => {
+  const sql = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../../supabase/sql/phase10_catalogo_conceptos.sql'),
+    'utf-8',
+  );
+  const CATALOGO_NOMBRES = [
+    ...sql.matchAll(/\(\s*'([a-z0-9-]+)',\s*'([^']*)',\s*'(recuperable|no_recuperable)'\s*\)/g),
+  ].map((match) => match[2]);
+
+  /**
+   * Every (naturaleza, estado) pair the capture form actually renders:
+   * `refreshConceptoUi` picks `sin_modalidad` with no modality, and one of
+   * `resuelto` / `por_crear` / `escribiendo` with either nature.
+   */
+  const PARES_UI: readonly [ConceptoNaturaleza | null, ConceptoAyudaEstado][] = [
+    [null, 'sin_modalidad'],
+    ['recuperable', 'resuelto'],
+    ['recuperable', 'por_crear'],
+    ['recuperable', 'escribiendo'],
+    ['no_recuperable', 'resuelto'],
+    ['no_recuperable', 'por_crear'],
+    ['no_recuperable', 'escribiendo'],
+  ];
+
+  it('blocks the capture and names the modality the list depends on when there is none', () => {
+    const text = conceptoAyudaText(null, 'sin_modalidad');
+
+    expect(text).toContain('Dividir entre');
+    expect(text).toContain('no puede continuar');
+  });
+
+  it('says a recoverable modality creates a debt and confirms its nature once resolved', () => {
+    const text = conceptoAyudaText('recuperable', 'resuelto');
+
+    expect(text).toContain('adeudo recuperable');
+    expect(text).toMatch(/Naturaleza confirmada[^.]*recuperable/);
+  });
+
+  it('says a non-recoverable modality creates no debt and where the support concepts are offered', () => {
+    const text = conceptoAyudaText('no_recuperable', 'resuelto');
+
+    expect(text).toContain('no crea adeudo');
+    expect(text).toContain('solo se ofrecen conceptos no recuperables');
+    expect(text).toContain('Individual, Fullparch o Todos');
+    expect(text).toMatch(/Naturaleza confirmada[^.]*no recuperable/);
+  });
+
+  it('does not promise the concept already exists on a recoverable modality', () => {
+    const text = conceptoAyudaText('recuperable', 'por_crear');
+
+    expect(text).toContain('adeudo recuperable');
+    expect(text).toContain('créalo aquí mismo');
+    expect(text).not.toMatch(/ya existe/i);
+  });
+
+  it('does not promise the concept already exists on a non-recoverable modality', () => {
+    const text = conceptoAyudaText('no_recuperable', 'por_crear');
+
+    expect(text).toContain('no crea adeudo');
+    expect(text).toContain('Individual, Fullparch o Todos');
+    expect(text).toContain('créalo aquí mismo');
+    expect(text).not.toMatch(/ya existe/i);
+  });
+
+  it('asks for the classification while typing on a recoverable modality', () => {
+    const text = conceptoAyudaText('recuperable', 'escribiendo');
+
+    expect(text).toContain('adeudo recuperable');
+    expect(text).toMatch(/escribe/i);
+    expect(text).toContain('clasificación');
+  });
+
+  it('asks for the classification while typing on a non-recoverable modality', () => {
+    const text = conceptoAyudaText('no_recuperable', 'escribiendo');
+
+    expect(text).toContain('no crea adeudo');
+    expect(text).toContain('Individual, Fullparch o Todos');
+    expect(text).toMatch(/escribe/i);
+    expect(text).toContain('clasificación');
+  });
+
+  it('never names a catalog concept, on any state: the catalog is data and changes', () => {
+    expect(CATALOGO_NOMBRES).toHaveLength(6);
+
+    for (const [naturaleza, estado] of PARES_UI) {
+      const text = normalizeConceptoText(conceptoAyudaText(naturaleza, estado));
+
+      for (const nombre of CATALOGO_NOMBRES) {
+        expect(text).not.toContain(normalizeConceptoText(nombre));
+      }
+    }
   });
 });
 

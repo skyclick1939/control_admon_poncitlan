@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
 import type { Concepto, ConceptoNaturaleza } from '../../lib/conceptos';
-import { resolveConcepto, searchConceptos, slugifyConcepto } from '../../lib/conceptos';
+import { conceptoAyudaText, resolveConcepto, searchConceptos, slugifyConcepto } from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
 import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
@@ -104,7 +104,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     if (naturaleza === null) {
       conceptoOptionsList.innerHTML = '';
       conceptoCreatePanel.classList.add('view-hidden');
-      setText(conceptoHelp, 'Elige primero la división para ver los conceptos disponibles.');
+      setText(conceptoHelp, conceptoAyudaText(null, 'sin_modalidad'));
       return;
     }
 
@@ -129,16 +129,11 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     }
 
     if (resuelto) {
-      setText(
-        conceptoHelp,
-        naturaleza === 'recuperable'
-          ? 'Recuperable: crea un adeudo que se devuelve. El motivo conserva el detalle.'
-          : 'No recuperable: lo absorbe el Arca. El motivo conserva el detalle.',
-      );
+      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'resuelto'));
     } else if (ofreceCreacion) {
-      setText(conceptoHelp, 'El concepto es obligatorio. Créalo aquí mismo para continuar.');
+      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'por_crear'));
     } else {
-      setText(conceptoHelp, 'El concepto es obligatorio. Escribe para buscar en el catálogo.');
+      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'escribiendo'));
     }
   }
 
