@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { App } from '../../app';
 import type { Concepto, ConceptoNaturaleza } from '../../lib/conceptos';
-import { conceptoAyudaText, resolveConcepto, searchConceptos, slugifyConcepto } from '../../lib/conceptos';
+import { conceptoAyudaText, conceptoPorId, conceptosOfrecidos, slugifyConcepto } from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
 import { activeMiembros } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
@@ -29,12 +29,11 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   const motivoApoyoInput = document.getElementById('motivo_apoyo') as HTMLInputElement;
   const beneficiarioListDiv = document.getElementById('beneficiario-list')!;
   const apoyoBeneficiarioSelect = document.getElementById('apoyo-beneficiario') as HTMLSelectElement;
-  const conceptoApoyoInput = document.getElementById('concepto_apoyo') as HTMLInputElement;
-  const conceptoOptionsList = document.getElementById('concepto-options') as HTMLDataListElement;
+  const conceptoApoyoSelect = document.getElementById('concepto_apoyo') as HTMLSelectElement;
   const conceptoHelp = document.getElementById('concepto-help')!;
   const conceptoCreatePanel = document.getElementById('concepto-create-panel')!;
-  const conceptoCreateMessage = document.getElementById('concepto-create-message')!;
   const conceptoCreateButton = document.getElementById('concepto-create-button') as HTMLButtonElement;
+  const nuevoConceptoNombreInput = document.getElementById('nuevo_concepto_nombre') as HTMLInputElement;
   const nuevoConceptoNaturalezaSelect = document.getElementById('nuevo_concepto_naturaleza') as HTMLSelectElement;
   const conceptoFeedback = document.getElementById('concepto-feedback')!;
   const conceptoManageToggle = document.getElementById('concepto-manage-toggle') as HTMLButtonElement;
@@ -47,6 +46,17 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     recuperable: 'Recuperable',
     no_recuperable: 'No recuperable',
   };
+
+  /** The dropdown's placeholder: no concept selected yet, and never a valid save value. */
+  const CONCEPTO_PLACEHOLDER = '<option value="">-- Seleccione un concepto --</option>';
+
+  /**
+   * The in-line creation offered as one more option of the list. It is NOT a
+   * catalog id: `conceptoPorId` refuses it, so it can never be saved as a
+   * classification (product-owner decision 2026-10-08: the classification is a
+   * value CHOSEN from the closed catalog).
+   */
+  const CREAR_CONCEPTO_VALUE = '__crear__';
 
   let beneficiarios: Miembro[] = [];
   /** The catalog as last read, plus any concept created in place during this session (design.md D9). */
@@ -85,8 +95,9 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
    * The nature the chosen modality can honestly book (design.md D2): the three
    * division modalities create cargos, so they offer only `recuperable`
    * concepts; "sin cargos" creates none, so it offers only `no_recuperable`.
-   * Before a modality is chosen there is no honest answer, so the selector
-   * stays disabled and empty rather than offering the wrong nature. PURE.
+   * Before a modality is chosen there is no honest answer, so the dropdown
+   * stays disabled, showing only the placeholder, rather than offering the
+   * wrong nature. PURE.
    */
   function currentNaturaleza(): ConceptoNaturaleza | null {
     if (tipoDivisionSelect.value === 'SIN_CARGOS') return 'no_recuperable';
@@ -94,46 +105,81 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     return null;
   }
 
-  /** Keeps the concept options and the in-line creation affordance in sync with the typed text and the modality. */
+  /**
+   * Only one nature is honest for the chosen modality, so the other option is
+   * blocked: it would create a concept the capture could not select (design.md
+   * D2, spec scenario "A new concept can be created in place").
+   */
+  function lockNaturalezaDeCreacion(naturaleza: ConceptoNaturaleza): void {
+    nuevoConceptoNaturalezaSelect.value = naturaleza;
+    for (const option of Array.from(nuevoConceptoNaturalezaSelect.options)) {
+      option.disabled = option.value !== naturaleza;
+    }
+  }
+
+  /**
+   * The concept the select currently resolves to, or `null`. The save gate:
+   * resolution is by option id, so the placeholder, the create sentinel, an
+   * unknown id, a deactivated concept and a concept of the other nature all
+   * block the save (spec "Concept Is Required for New Captures").
+   */
+  function conceptoSeleccionado(): Concepto | null {
+    const naturaleza = currentNaturaleza();
+    if (naturaleza === null) return null;
+    return conceptoPorId(conceptos, conceptoApoyoSelect.value, naturaleza);
+  }
+
+  /**
+   * Keeps the dropdown in sync with the modality: with no modality there is no
+   * honest list, so the select stays disabled and shows only the placeholder.
+   * Otherwise it offers, in order, the placeholder, the active concepts of the
+   * modality's nature and the in-line creation. An existing selection is kept
+   * while it is still offered; any other value falls back to the placeholder,
+   * which is what blocks the save.
+   */
   function refreshConceptoUi(): void {
     const naturaleza = currentNaturaleza();
-    const query = conceptoApoyoInput.value.trim();
 
-    conceptoApoyoInput.disabled = naturaleza === null;
+    conceptoApoyoSelect.disabled = naturaleza === null;
 
     if (naturaleza === null) {
-      conceptoOptionsList.innerHTML = '';
+      conceptoApoyoSelect.innerHTML = CONCEPTO_PLACEHOLDER;
       conceptoCreatePanel.classList.add('view-hidden');
       setText(conceptoHelp, conceptoAyudaText(null, 'sin_modalidad'));
       return;
     }
 
-    const resultado = searchConceptos(conceptos, query, naturaleza);
-    conceptoOptionsList.innerHTML = resultado.matches
-      .map((concepto) => `<option value="${escapeHtml(concepto.nombre)}"></option>`)
-      .join('');
+    const seleccionPrevia = conceptoPorId(conceptos, conceptoApoyoSelect.value, naturaleza);
+    const crearSeleccionado = conceptoApoyoSelect.value === CREAR_CONCEPTO_VALUE;
 
-    const resuelto = resolveConcepto(conceptos, query, naturaleza);
-    const ofreceCreacion = query !== '' && resuelto === null;
+    conceptoApoyoSelect.innerHTML =
+      CONCEPTO_PLACEHOLDER +
+      conceptosOfrecidos(conceptos, naturaleza)
+        .map(
+          (concepto) =>
+            `<option value="${escapeHtml(concepto.id)}">${escapeHtml(concepto.nombre)}</option>`,
+        )
+        .join('') +
+      `<option value="${CREAR_CONCEPTO_VALUE}">➕ Crear concepto nuevo…</option>`;
 
-    conceptoCreatePanel.classList.toggle('view-hidden', !ofreceCreacion);
-    if (ofreceCreacion) {
-      setText(conceptoCreateMessage, `No existe "${query}". Créalo sin salir de aquí:`);
-      // Only one nature is honest for this modality, so the other option is
-      // blocked: it would create a concept the capture could not select
-      // (design.md D2, spec scenario "A new concept can be created in place").
-      nuevoConceptoNaturalezaSelect.value = naturaleza;
-      for (const option of Array.from(nuevoConceptoNaturalezaSelect.options)) {
-        option.disabled = option.value !== naturaleza;
-      }
-    }
+    conceptoApoyoSelect.value = seleccionPrevia
+      ? seleccionPrevia.id
+      : crearSeleccionado
+        ? CREAR_CONCEPTO_VALUE
+        : '';
+
+    const resuelto = conceptoSeleccionado();
+    const creando = conceptoApoyoSelect.value === CREAR_CONCEPTO_VALUE;
+
+    conceptoCreatePanel.classList.toggle('view-hidden', !creando);
+    if (creando) lockNaturalezaDeCreacion(naturaleza);
 
     if (resuelto) {
       setText(conceptoHelp, conceptoAyudaText(naturaleza, 'resuelto'));
-    } else if (ofreceCreacion) {
-      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'por_crear'));
+    } else if (creando) {
+      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'creando'));
     } else {
-      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'escribiendo'));
+      setText(conceptoHelp, conceptoAyudaText(naturaleza, 'sin_seleccion'));
     }
   }
 
@@ -142,7 +188,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
       conceptos = await fetchConceptos();
     } catch (error) {
       console.error('Error al cargar el catálogo de conceptos:', error);
-      // The selector stays empty and the save stays blocked: an unclassified
+      // The dropdown stays empty and the save stays blocked: an unclassified
       // capture is refused rather than silently misclassified (design.md D3).
     }
     renderConceptoManageList();
@@ -193,15 +239,12 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     try {
       const actualizado = await setConceptoActivo(id, !actual.activo);
 
-      // Resolve BEFORE replacing the catalog: once the concept is inactive,
-      // `resolveConcepto` refuses it and the "same selection" check is lost.
-      const seleccionPrevia = resolveConcepto(
-        conceptos,
-        conceptoApoyoInput.value,
-        currentNaturaleza() ?? undefined,
-      );
-      if (!actualizado.activo && seleccionPrevia?.id === actualizado.id) {
-        conceptoApoyoInput.value = '';
+      // Read the current selection BEFORE replacing the catalog: once the
+      // concept is inactive it is no longer offered, so the "same selection"
+      // check could no longer be made.
+      const seleccionPreviaId = conceptoApoyoSelect.value;
+      if (!actualizado.activo && seleccionPreviaId === actualizado.id) {
+        conceptoApoyoSelect.value = '';
         conceptoFeedback.textContent = '';
       }
 
@@ -266,7 +309,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     const membersToCharge = getMembersToCharge();
     const monto = parseFloat(montoApoyoInput.value) || 0;
     const isSinCargos = tipoDivisionSelect.value === 'SIN_CARGOS';
-    const concepto = resolveConcepto(conceptos, conceptoApoyoInput.value, currentNaturaleza() ?? undefined);
+    const concepto = conceptoSeleccionado();
     const isValid = Boolean(
       fechaApoyoInput.value &&
         motivoApoyoInput.value.trim() &&
@@ -304,7 +347,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     const membersToCharge = getMembersToCharge();
     const monto = parseFloat(montoApoyoInput.value);
     const isSinCargos = tipoDivisionSelect.value === 'SIN_CARGOS';
-    const concepto = resolveConcepto(conceptos, conceptoApoyoInput.value, currentNaturaleza() ?? undefined);
+    const concepto = conceptoSeleccionado();
 
     if (!currentUser) {
       saveApoyoButton.disabled = false;
@@ -365,7 +408,22 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
 
   solicitudForm.addEventListener('input', validateApoyoForm);
   membersCheckboxList.addEventListener('change', validateApoyoForm);
-  conceptoApoyoInput.addEventListener('input', () => {
+  /**
+   * Choosing the in-line creation opens its panel with the modality's own nature
+   * locked; choosing anything else (a concept or the placeholder) closes it.
+   * `validateApoyoForm` re-renders the list and the help text either way.
+   */
+  conceptoApoyoSelect.addEventListener('change', () => {
+    conceptoFeedback.textContent = '';
+
+    const naturaleza = currentNaturaleza();
+    if (naturaleza !== null && conceptoApoyoSelect.value === CREAR_CONCEPTO_VALUE) {
+      lockNaturalezaDeCreacion(naturaleza);
+    }
+
+    validateApoyoForm();
+  });
+  nuevoConceptoNombreInput.addEventListener('input', () => {
     conceptoFeedback.textContent = '';
   });
   nuevoConceptoNaturalezaSelect.addEventListener('change', () => {
@@ -373,8 +431,14 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   });
   conceptoCreateButton.addEventListener('click', async () => {
     const naturaleza = currentNaturaleza();
-    const nombre = conceptoApoyoInput.value.trim();
-    if (!naturaleza || !nombre) return;
+    if (!naturaleza) return;
+
+    const nombre = nuevoConceptoNombreInput.value.trim();
+    if (nombre === '') {
+      conceptoFeedback.textContent = 'Escribe el nombre del nuevo concepto para crearlo.';
+      conceptoFeedback.className = 'mt-2 text-sm text-red-600';
+      return;
+    }
 
     conceptoFeedback.textContent = '';
     conceptoCreateButton.disabled = true;
@@ -387,8 +451,12 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
         createdById: getCurrentUser()?.id ?? null,
       });
       conceptos = [...conceptos, nuevo];
-      conceptoApoyoInput.value = nuevo.nombre;
+      nuevoConceptoNombreInput.value = '';
       renderConceptoManageList();
+      // Re-render first so the new option exists, then select it and let the
+      // validation leave the "creating" state.
+      refreshConceptoUi();
+      conceptoApoyoSelect.value = nuevo.id;
       validateApoyoForm();
     } catch (error) {
       console.error('Error al crear el concepto:', error);
@@ -407,7 +475,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     // The modality changed, so the nature it can book changed with it (D2): a
     // concept chosen under the previous modality may belong to the other
     // nature. Clearing it forces an explicit classification under the new one.
-    conceptoApoyoInput.value = '';
+    conceptoApoyoSelect.value = '';
     conceptoFeedback.textContent = '';
     validateApoyoForm();
   });

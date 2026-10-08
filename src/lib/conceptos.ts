@@ -1,9 +1,11 @@
 /**
- * Pure concept-catalog matching for the selector (design.md D9). No DOM and no
- * Supabase: the datalist itself is browser behaviour, so this module is the
- * part of the selector that a test can pin — accent- and case-insensitive
- * substring matching, prefix-first ranking, the nature filter and the explicit
- * no-match signal the UI turns into the create affordance.
+ * Pure concept-catalog logic for the capture form's dropdown (design.md D2/D3,
+ * product-owner decision 2026-10-08): the classification is a value CHOSEN
+ * from the closed catalog, so the offered options are exactly what the catalog
+ * holds for the modality's nature. No DOM and no Supabase — the `<select>`
+ * itself is browser behaviour — so this module is the part of the selector a
+ * test can pin: which concepts are offered, and which option id the save gate
+ * accepts.
  */
 
 /**
@@ -25,24 +27,13 @@ export interface Concepto {
   readonly activo: boolean;
 }
 
-export interface ConceptoSearchResult {
-  /** Active concepts of the requested nature, prefix matches first, stable otherwise. */
-  readonly matches: Concepto[];
-  /**
-   * `true` only when a non-empty query matched nothing. That is the signal the
-   * capture form renders as "crear concepto <texto>" (design.md D9); it is NOT
-   * raised for an empty query, which simply lists the whole nature.
-   */
-  readonly noMatch: boolean;
-}
-
 /**
- * Where the concept selector stands, as the capture form can observe it: no
- * modality chosen, the modality chosen and its concept already resolved, the
- * modality chosen and the typed text matching nothing (the create affordance
- * is offered), or the modality chosen and the operator still typing.
+ * Where the concept dropdown stands, as the capture form can observe it: no
+ * modality chosen (so no honest list at all), the modality chosen and nothing
+ * selected yet, the modality chosen and a concept resolved, or the operator
+ * creating a concept in place.
  */
-export type ConceptoAyudaEstado = 'sin_modalidad' | 'resuelto' | 'por_crear' | 'escribiendo';
+export type ConceptoAyudaEstado = 'sin_modalidad' | 'sin_seleccion' | 'resuelto' | 'creando';
 
 export function isConceptoNaturaleza(value: unknown): value is ConceptoNaturaleza {
   return typeof value === 'string' && (NATURALEZAS as readonly string[]).includes(value);
@@ -68,12 +59,34 @@ export function slugifyConcepto(nombre: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Narrows a list to one nature. Orthogonal to the active flag and to matching. */
-export function filterByNaturaleza(
+/**
+ * Active concepts of one nature, in catalog order — the dropdown's option list.
+ * Catalog order is the order the operator sees, so it is preserved rather than
+ * re-ranked. PURE: the catalog is not mutated.
+ */
+export function conceptosOfrecidos(
   conceptos: readonly Concepto[],
   naturaleza: ConceptoNaturaleza,
 ): Concepto[] {
-  return conceptos.filter((concepto) => concepto.naturaleza === naturaleza);
+  return conceptos.filter((concepto) => concepto.activo && concepto.naturaleza === naturaleza);
+}
+
+/**
+ * The concept a selected option id resolves to, only if it is still offered for
+ * that nature. PURE. Anything that is not an OFFERED concept id resolves to
+ * `null` — the placeholder's empty value, the create sentinel, an unknown id, a
+ * deactivated concept and a concept of the other nature — and `null` is what
+ * blocks a save without a valid concept (spec "Concept Is Required for New
+ * Captures"). Resolution is by id, never by name: the option value is the id,
+ * so a stale label cannot classify a movement.
+ */
+export function conceptoPorId(
+  conceptos: readonly Concepto[],
+  id: string,
+  naturaleza: ConceptoNaturaleza,
+): Concepto | null {
+  if (id === '') return null;
+  return conceptosOfrecidos(conceptos, naturaleza).find((concepto) => concepto.id === id) ?? null;
 }
 
 /** The selectable concepts: activo only. A deactivated concept keeps history but is never offered. */
@@ -84,42 +97,6 @@ function selectableConceptos(
   return conceptos.filter(
     (concepto) => concepto.activo && (naturaleza === undefined || concepto.naturaleza === naturaleza),
   );
-}
-
-/**
- * Filters the catalog by what the operator has typed so far. Matching is
- * substring over the name and the slug, ignoring case and accents; prefix
- * matches rank before interior ones, and concepts of equal rank keep catalog
- * order (datalist order is the only ranking the operator sees).
- */
-export function searchConceptos(
-  conceptos: readonly Concepto[],
-  query: string,
-  naturaleza?: ConceptoNaturaleza,
-): ConceptoSearchResult {
-  const needle = normalizeConceptoText(query);
-  const candidates = selectableConceptos(conceptos, naturaleza);
-
-  if (needle === '') {
-    return { matches: candidates, noMatch: false };
-  }
-
-  const prefix: Concepto[] = [];
-  const interior: Concepto[] = [];
-
-  for (const concepto of candidates) {
-    const name = normalizeConceptoText(concepto.nombre);
-    const slug = normalizeConceptoText(concepto.slug);
-
-    if (name.startsWith(needle) || slug.startsWith(needle)) {
-      prefix.push(concepto);
-    } else if (name.includes(needle) || slug.includes(needle)) {
-      interior.push(concepto);
-    }
-  }
-
-  const matches = [...prefix, ...interior];
-  return { matches, noMatch: matches.length === 0 };
 }
 
 /**
@@ -186,8 +163,8 @@ export function conceptosPresentes(
 }
 
 /**
- * The one reason the selector can be empty for reasons outside the operator's
- * typing: the concept list is derived from the chosen modality, so without one
+ * The one reason the dropdown can be empty for reasons outside the operator's
+ * choice: the concept list is derived from the chosen modality, so without one
  * there is no honest list to offer and the capture cannot proceed (design.md
  * D2 — this is the constraint, not a defect).
  */
@@ -208,27 +185,32 @@ const NATURALEZA_HELP: Record<ConceptoNaturaleza, string> = {
     'Esta modalidad no crea adeudo, así que solo se ofrecen conceptos no recuperables. Los conceptos de apoyo se ofrecen con Individual, Fullparch o Todos.',
 };
 
-/** What is left to do once the nature is resolved. Design D10: the concept never replaces the motivo. */
+/**
+ * What is left to do once the nature is resolved. Design D10: the concept never
+ * replaces the motivo.
+ */
 const RESUELTO_HELP: Record<ConceptoNaturaleza, string> = {
   recuperable: 'Naturaleza confirmada: recuperable. El motivo conserva el detalle.',
   no_recuperable: 'Naturaleza confirmada: no recuperable. El motivo conserva el detalle.',
 };
 
 /**
- * What is left to do while the concept is not resolved yet. "por_crear" must
- * not read as if the concept already existed (nothing matched the typed text),
- * and "escribiendo" asks for the classification instead of assuming one.
+ * What is left to do while nothing is selected yet. The list is right there, so
+ * the copy asks for a choice instead of asking for text.
  */
-const ESTADO_HELP: Record<'por_crear' | 'escribiendo', string> = {
-  por_crear:
-    'El concepto es obligatorio y todavía no existe en el catálogo: créalo aquí mismo para continuar.',
-  escribiendo: 'El concepto es obligatorio: escribe para buscar su clasificación en el catálogo.',
-};
+const SIN_SELECCION_HELP = 'El concepto es obligatorio: elige un concepto de la lista para continuar.';
 
 /**
- * Operator-facing help for the concept selector (design.md D9/D10; spec
+ * What the in-line creation asks for. It must not read as if the concept
+ * already existed: nothing is offered until the name and the nature are given.
+ */
+const CREANDO_HELP =
+  'Escribe el nombre del nuevo concepto y confirma su naturaleza para continuar.';
+
+/**
+ * Operator-facing help for the concept dropdown (design.md D2/D3/D10; spec
  * `catalogo-conceptos`). Makes the modality → concept dependency explicit,
- * which is what the operator could not see: the selector only offers the
+ * which is what the operator could not see: the dropdown only offers the
  * concepts of the chosen modality's nature, so with "Sin cargos" the only
  * concepts on offer are the non-recoverable ones. PURE: no DOM, no database,
  * no catalog — the text cannot name a concept, because concepts are data.
@@ -240,7 +222,8 @@ export function conceptoAyudaText(
   // Both signals mean the same thing: there is no modality, so no list.
   if (naturaleza === null || estado === 'sin_modalidad') return SIN_MODALIDAD_HELP;
 
-  const estadoHelp = estado === 'resuelto' ? RESUELTO_HELP[naturaleza] : ESTADO_HELP[estado];
+  if (estado === 'resuelto') return `${NATURALEZA_HELP[naturaleza]} ${RESUELTO_HELP[naturaleza]}`;
+  if (estado === 'creando') return `${NATURALEZA_HELP[naturaleza]} ${CREANDO_HELP}`;
 
-  return `${NATURALEZA_HELP[naturaleza]} ${estadoHelp}`;
+  return `${NATURALEZA_HELP[naturaleza]} ${SIN_SELECCION_HELP}`;
 }

@@ -5,13 +5,13 @@ import { describe, expect, it } from 'vitest';
 import {
   NATURALEZAS,
   conceptoAyudaText,
+  conceptoPorId,
+  conceptosOfrecidos,
   conceptosPresentes,
-  filterByNaturaleza,
   isConceptoNaturaleza,
   matchesConceptoFiltro,
   normalizeConceptoText,
   resolveConcepto,
-  searchConceptos,
   slugifyConcepto,
   type Concepto,
   type ConceptoAyudaEstado,
@@ -80,90 +80,83 @@ describe('normalizeConceptoText', () => {
   });
 });
 
-describe('searchConceptos', () => {
-  it('matches with or without accents (accent-insensitive substring)', () => {
-    expect(ids(searchConceptos(CATALOGO, 'donacion', 'no_recuperable').matches)).toEqual(['1']);
-    expect(ids(searchConceptos(CATALOGO, 'donación', 'no_recuperable').matches)).toEqual(['1']);
-    expect(ids(searchConceptos(CATALOGO, 'caido', 'recuperable').matches)).toEqual(['6']);
-    expect(ids(searchConceptos(CATALOGO, 'caído', 'recuperable').matches)).toEqual(['6']);
+/**
+ * `conceptosOfrecidos` is the dropdown's option list. The product owner's
+ * decision (2026-10-08) is that the classification is a value CHOSEN from the
+ * closed catalog, so the list is exactly what the catalog offers for the
+ * modality's nature: active only, one nature only, catalog order.
+ */
+describe('conceptosOfrecidos', () => {
+  it('lists the active concepts of one nature, in catalog order', () => {
+    expect(ids(conceptosOfrecidos(CATALOGO, 'recuperable'))).toEqual(['2', '3', '4', '6']);
+    expect(ids(conceptosOfrecidos(CATALOGO, 'no_recuperable'))).toEqual(['1']);
   });
 
-  it('matches case-insensitively', () => {
-    expect(ids(searchConceptos(CATALOGO, 'ANIVERSARIO', 'recuperable').matches)).toEqual(['4']);
-    expect(ids(searchConceptos(CATALOGO, 'DoNaCiOnEs', 'no_recuperable').matches)).toEqual(['1']);
-  });
-
-  it('returns every active concept of the nature, in catalog order, when the query is empty', () => {
-    const result = searchConceptos(CATALOGO, '   ', 'recuperable');
-
-    expect(ids(result.matches)).toEqual(['2', '3', '4', '6']);
-    expect(result.noMatch).toBe(false);
-  });
-
-  it('ranks prefix matches before interior matches', () => {
-    const ranking: Concepto[] = [
-      { id: 'interior', slug: 'gasto-interior', nombre: 'Gasto interior', naturaleza: 'recuperable', activo: true },
-      { id: 'prefix-late', slug: 'interior-tarde', nombre: 'Interior tarde', naturaleza: 'recuperable', activo: true },
-      { id: 'prefix-early', slug: 'interior-temprano', nombre: 'Interior temprano', naturaleza: 'recuperable', activo: true },
+  it('drops a deactivated concept and keeps the rest of its nature', () => {
+    const catalogo: Concepto[] = [
+      { id: 'activo', slug: 'activo', nombre: 'Activo', naturaleza: 'no_recuperable', activo: true },
+      {
+        id: 'inactivo',
+        slug: 'inactivo',
+        nombre: 'Inactivo',
+        naturaleza: 'no_recuperable',
+        activo: false,
+      },
     ];
 
-    expect(ids(searchConceptos(ranking, 'interior').matches)).toEqual([
-      'prefix-late',
-      'prefix-early',
-      'interior',
-    ]);
+    expect(ids(conceptosOfrecidos(catalogo, 'no_recuperable'))).toEqual(['activo']);
   });
 
-  it('keeps catalog order for concepts of equal rank (stable)', () => {
-    const sameRank: Concepto[] = [
-      { id: 'first', slug: 'aniversario-uno', nombre: 'Aniversario uno', naturaleza: 'recuperable', activo: true },
-      { id: 'second', slug: 'aniversario-dos', nombre: 'Aniversario dos', naturaleza: 'recuperable', activo: true },
-    ];
-
-    expect(ids(searchConceptos(sameRank, 'aniversario').matches)).toEqual(['first', 'second']);
-    expect(ids(searchConceptos([...sameRank].reverse(), 'aniversario').matches)).toEqual(['second', 'first']);
-  });
-
-  it('signals no match only when a non-empty query matched nothing', () => {
-    const hipoteca = searchConceptos(CATALOGO, 'hipoteca', 'recuperable');
-    expect(hipoteca.matches).toEqual([]);
-    expect(hipoteca.noMatch).toBe(true);
-
-    expect(searchConceptos(CATALOGO, '', 'recuperable').noMatch).toBe(false);
-  });
-
-  it('never offers an inactive concept', () => {
-    const result = searchConceptos(CATALOGO, 'adquisiciones', 'no_recuperable');
-
-    expect(result.matches).toEqual([]);
-    expect(result.noMatch).toBe(true);
-    expect(ids(searchConceptos(CATALOGO, '', 'no_recuperable').matches)).toEqual(['1']);
-  });
-
-  it('never offers a concept of the wrong nature for the modality', () => {
-    // spec scenario: "A recoverable concept cannot be booked as an expense".
-    expect(searchConceptos(CATALOGO, 'accidentados', 'no_recuperable').matches).toEqual([]);
-    // spec scenario: "A non-recoverable concept cannot create a debt".
-    expect(searchConceptos(CATALOGO, 'donaciones', 'recuperable').matches).toEqual([]);
-  });
-
-  it('matches the slug as well as the name', () => {
-    expect(ids(searchConceptos(CATALOGO, 'hermano-caido', 'recuperable').matches)).toEqual(['6']);
+  it('never offers a concept of the other nature', () => {
+    for (const concepto of conceptosOfrecidos(CATALOGO, 'recuperable')) {
+      expect(concepto.naturaleza).toBe('recuperable');
+    }
+    for (const concepto of conceptosOfrecidos(CATALOGO, 'no_recuperable')) {
+      expect(concepto.naturaleza).toBe('no_recuperable');
+    }
   });
 
   it('does not mutate the catalog it is given', () => {
     const before = [...CATALOGO];
 
-    searchConceptos(CATALOGO, 'a');
+    conceptosOfrecidos(CATALOGO, 'recuperable');
 
     expect(CATALOGO).toEqual(before);
   });
 });
 
-describe('filterByNaturaleza', () => {
-  it('keeps only the requested nature, preserving catalog order and the active flag', () => {
-    expect(ids(filterByNaturaleza(CATALOGO, 'no_recuperable'))).toEqual(['1', '5']);
-    expect(ids(filterByNaturaleza(CATALOGO, 'recuperable'))).toEqual(['2', '3', '4', '6']);
+/**
+ * `conceptoPorId` is the save gate now that the operator picks an option
+ * instead of typing: the option VALUE is the concept id, so resolution is by
+ * id and a stale or hostile value must resolve to `null` rather than classify
+ * a movement. PURE.
+ */
+describe('conceptoPorId', () => {
+  it('resolves an offered concept by its id', () => {
+    expect(conceptoPorId(CATALOGO, '3', 'recuperable')?.nombre).toBe('Apoyo legal');
+    expect(conceptoPorId(CATALOGO, '1', 'no_recuperable')?.nombre).toBe('Donaciones');
+  });
+
+  it('refuses the placeholder and the create sentinel: neither is a catalog row', () => {
+    expect(conceptoPorId(CATALOGO, '', 'recuperable')).toBeNull();
+    expect(conceptoPorId(CATALOGO, '__crear__', 'recuperable')).toBeNull();
+    expect(conceptoPorId(CATALOGO, '__crear__', 'no_recuperable')).toBeNull();
+  });
+
+  it('refuses an unknown id', () => {
+    expect(conceptoPorId(CATALOGO, '999', 'recuperable')).toBeNull();
+    expect(conceptoPorId(CATALOGO, 'apoyo-legal', 'recuperable')).toBeNull();
+  });
+
+  it('refuses a deactivated concept even by its exact id', () => {
+    expect(conceptoPorId(CATALOGO, '5', 'no_recuperable')).toBeNull();
+  });
+
+  it('refuses a concept of the wrong nature for the modality', () => {
+    // spec scenario: "A recoverable concept cannot be booked as an expense".
+    expect(conceptoPorId(CATALOGO, '1', 'recuperable')).toBeNull();
+    // spec scenario: "A non-recoverable concept cannot create a debt".
+    expect(conceptoPorId(CATALOGO, '3', 'no_recuperable')).toBeNull();
   });
 });
 
@@ -271,8 +264,8 @@ describe('slugifyConcepto', () => {
 });
 
 /**
- * `conceptoAyudaText` is the single source of the concept selector's help copy
- * (design.md D9/D10). The operator reported that the support concepts seemed
+ * `conceptoAyudaText` is the single source of the concept dropdown's help copy
+ * (design.md D2/D9/D10). The operator reported that the support concepts seemed
  * missing; the copy is what makes the modality → concept dependency explicit,
  * so the assertion is on what the operator actually reads, not on an internal
  * label. The catalog names are read from the migration rather than copied into
@@ -290,16 +283,16 @@ describe('conceptoAyudaText', () => {
   /**
    * Every (naturaleza, estado) pair the capture form actually renders:
    * `refreshConceptoUi` picks `sin_modalidad` with no modality, and one of
-   * `resuelto` / `por_crear` / `escribiendo` with either nature.
+   * `resuelto` / `creando` / `sin_seleccion` with either nature.
    */
   const PARES_UI: readonly [ConceptoNaturaleza | null, ConceptoAyudaEstado][] = [
     [null, 'sin_modalidad'],
+    ['recuperable', 'sin_seleccion'],
     ['recuperable', 'resuelto'],
-    ['recuperable', 'por_crear'],
-    ['recuperable', 'escribiendo'],
+    ['recuperable', 'creando'],
+    ['no_recuperable', 'sin_seleccion'],
     ['no_recuperable', 'resuelto'],
-    ['no_recuperable', 'por_crear'],
-    ['no_recuperable', 'escribiendo'],
+    ['no_recuperable', 'creando'],
   ];
 
   it('blocks the capture and names the modality the list depends on when there is none', () => {
@@ -309,54 +302,44 @@ describe('conceptoAyudaText', () => {
     expect(text).toContain('no puede continuar');
   });
 
-  it('says a recoverable modality creates a debt and confirms its nature once resolved', () => {
-    const text = conceptoAyudaText('recuperable', 'resuelto');
+  it('says a recoverable modality creates a debt and asks to pick one from the list', () => {
+    const text = conceptoAyudaText('recuperable', 'sin_seleccion');
 
     expect(text).toContain('adeudo recuperable');
-    expect(text).toMatch(/Naturaleza confirmada[^.]*recuperable/);
+    expect(text).toContain('solo se ofrecen conceptos recuperables');
+    expect(text).toContain('elige un concepto de la lista');
   });
 
   it('says a non-recoverable modality creates no debt and where the support concepts are offered', () => {
-    const text = conceptoAyudaText('no_recuperable', 'resuelto');
+    const text = conceptoAyudaText('no_recuperable', 'sin_seleccion');
 
     expect(text).toContain('no crea adeudo');
     expect(text).toContain('solo se ofrecen conceptos no recuperables');
     expect(text).toContain('Individual, Fullparch o Todos');
-    expect(text).toMatch(/Naturaleza confirmada[^.]*no recuperable/);
+    expect(text).toContain('elige un concepto de la lista');
   });
 
-  it('does not promise the concept already exists on a recoverable modality', () => {
-    const text = conceptoAyudaText('recuperable', 'por_crear');
+  it('confirms the chosen nature and that the motivo keeps the detail once resolved', () => {
+    const recuperable = conceptoAyudaText('recuperable', 'resuelto');
+    expect(recuperable).toMatch(/Naturaleza confirmada[^.]*recuperable/);
+    expect(recuperable).toContain('motivo conserva el detalle');
 
-    expect(text).toContain('adeudo recuperable');
-    expect(text).toContain('créalo aquí mismo');
-    expect(text).not.toMatch(/ya existe/i);
+    const noRecuperable = conceptoAyudaText('no_recuperable', 'resuelto');
+    expect(noRecuperable).toMatch(/Naturaleza confirmada[^.]*no recuperable/);
+    expect(noRecuperable).toContain('motivo conserva el detalle');
   });
 
-  it('does not promise the concept already exists on a non-recoverable modality', () => {
-    const text = conceptoAyudaText('no_recuperable', 'por_crear');
+  it('asks for the new concept name and nature while creating, never assuming it exists', () => {
+    for (const naturaleza of ['recuperable', 'no_recuperable'] as const) {
+      const text = conceptoAyudaText(naturaleza, 'creando');
 
-    expect(text).toContain('no crea adeudo');
-    expect(text).toContain('Individual, Fullparch o Todos');
-    expect(text).toContain('créalo aquí mismo');
-    expect(text).not.toMatch(/ya existe/i);
-  });
+      expect(text).toMatch(/nombre del nuevo concepto/i);
+      expect(text).toMatch(/naturaleza/i);
+      expect(text).not.toMatch(/ya existe/i);
+    }
 
-  it('asks for the classification while typing on a recoverable modality', () => {
-    const text = conceptoAyudaText('recuperable', 'escribiendo');
-
-    expect(text).toContain('adeudo recuperable');
-    expect(text).toMatch(/escribe/i);
-    expect(text).toContain('clasificación');
-  });
-
-  it('asks for the classification while typing on a non-recoverable modality', () => {
-    const text = conceptoAyudaText('no_recuperable', 'escribiendo');
-
-    expect(text).toContain('no crea adeudo');
-    expect(text).toContain('Individual, Fullparch o Todos');
-    expect(text).toMatch(/escribe/i);
-    expect(text).toContain('clasificación');
+    expect(conceptoAyudaText('recuperable', 'creando')).toContain('adeudo recuperable');
+    expect(conceptoAyudaText('no_recuperable', 'creando')).toContain('no crea adeudo');
   });
 
   it('never names a catalog concept, on any state: the catalog is data and changes', () => {

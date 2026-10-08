@@ -53,7 +53,7 @@ export async function createConcepto(input: NuevoConceptoInput): Promise<Concept
  * refuses to delete a concept that is in use — and that refusal is the intended
  * behaviour, not a gap to route around. Deactivating keeps every historical
  * classification intact while removing the concept from the capture selector
- * (`searchConceptos`/`resolveConcepto` already skip `activo: false`).
+ * (`conceptosOfrecidos`/`conceptoPorId` already skip `activo: false`).
  */
 export async function setConceptoActivo(id: string, activo: boolean): Promise<Concepto> {
   const { data, error } = await dbClient
