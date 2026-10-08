@@ -10,7 +10,7 @@ import {
   slugifyConcepto,
 } from '../../lib/conceptos';
 import { escapeHtml, setText } from '../../lib/escape';
-import { activeMiembros } from '../../lib/miembros';
+import { miembrosSeleccionables } from '../../lib/miembros';
 import { splitEvenly, toCents, toPesos } from '../../lib/money';
 import type { Miembro } from '../../lib/types';
 import { fetchMembers } from '../miembros/repo';
@@ -85,13 +85,18 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     return { beneficiarioId: member.id, nombreBeneficiario: member.nickname };
   }
 
-  /** Fills the beneficiary selector with active members (internal members included); leaves the "no beneficiary" option first. */
+  /**
+   * Fills the beneficiary selector with the selectable members — the internal
+   * pseudo-member (`Gastos_sin_cargar`) is NOT a party and stays out, like it
+   * already does in `getMembersToCharge`. Leaves the "no beneficiary" option
+   * first.
+   */
   async function populateBeneficiarios(): Promise<void> {
     try {
       beneficiarios = await fetchMembers();
       apoyoBeneficiarioSelect.innerHTML =
         '<option value="">-- Sin beneficiario --</option>' +
-        activeMiembros(beneficiarios)
+        miembrosSeleccionables(beneficiarios)
           .map((member) => `<option value="${member.id}">${escapeHtml(member.nickname)}</option>`)
           .join('');
     } catch (error) {
@@ -296,7 +301,9 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
   }
 
   function getMembersToCharge(): Miembro[] {
-    const members = activeMiembros(app.state.members);
+    // The internal pseudo-member is not a party at all, for every modality: a
+    // checked internal box must not be chargeable either.
+    const members = miembrosSeleccionables(app.state.members);
     if (tipoDivisionSelect.value === 'TODOS') return members.filter((m) => m.status !== 'interno');
     if (tipoDivisionSelect.value === 'FULLPARCH') return members.filter((m) => m.status === 'fullparch');
     if (tipoDivisionSelect.value === 'INDIVIDUAL') {
@@ -316,7 +323,7 @@ export function initApoyos({ app, getCurrentUser }: ApoyosDeps): void {
     capturadoPorInput.value = currentUser.email ?? '';
     fechaApoyoInput.valueAsDate = new Date();
 
-    membersCheckboxList.innerHTML = activeMiembros(app.state.members)
+    membersCheckboxList.innerHTML = miembrosSeleccionables(app.state.members)
       .map(
         (member) => `
         <div class="flex items-center">
