@@ -26,7 +26,7 @@ export interface CargoDesgloseRow {
   readonly monto_pendiente: number;
   readonly estado: 'pendiente' | 'pagado';
   readonly fecha: string;
-  readonly concepto: string | null;
+  readonly etiqueta: string | null;
 }
 
 /** One payment row as stored, before aggregation. */
@@ -48,10 +48,10 @@ export interface AjusteDesgloseRow {
   readonly created_at: string;
 }
 
-/** One cargo of a member, in cents, with its resolved concept label. */
+/** One cargo of a member, in cents, with the label the caller resolved for it. */
 export interface AdeudoDesglose {
   readonly id: string;
-  readonly concepto: string;
+  readonly etiqueta: string;
   readonly fecha: string;
   readonly originalCents: Cents;
   readonly cubiertoCents: Cents;
@@ -84,20 +84,20 @@ export interface MiembroDesglose {
   readonly abonos: AbonoDesglose[];
 }
 
-export interface ConceptoPendiente {
-  readonly concepto: string;
+export interface EtiquetaPendiente {
+  readonly etiqueta: string;
   readonly pendienteCents: Cents;
 }
 
 export interface PublicBreakdown {
   readonly miembros: MiembroDesglose[];
-  readonly porConcepto: ConceptoPendiente[];
+  readonly porEtiqueta: EtiquetaPendiente[];
   readonly totalPendienteCents: Cents;
   readonly totalAbonadoCents: Cents;
 }
 
-/** Label for cargos recorded before the concept catalog existed. */
-const SIN_CLASIFICAR = 'Sin clasificar';
+/** Label for cargos whose apoyo carries no motive text. */
+const SIN_ETIQUETA = 'Sin motivo';
 
 /**
  * Eligibility mirrors `debt-view.ts`'s `aggregateDebtByMember`: a row with no
@@ -191,7 +191,7 @@ export function buildPublicBreakdown(input: {
     acumulado.cubiertoCents += cubiertoCents;
     acumulado.adeudos.push({
       id: cargo.id,
-      concepto: cargo.concepto ?? SIN_CLASIFICAR,
+      etiqueta: cargo.etiqueta ?? SIN_ETIQUETA,
       fecha: cargo.fecha,
       originalCents,
       cubiertoCents,
@@ -221,7 +221,7 @@ export function buildPublicBreakdown(input: {
   }
 
   const miembros: MiembroDesglose[] = [];
-  const porConceptoAcumulado = new Map<string, Cents>();
+  const porEtiquetaAcumulado = new Map<string, Cents>();
 
   for (const acumulado of acumulados.values()) {
     if (acumulado.adeudos.length === 0 && acumulado.abonos.length === 0) continue;
@@ -234,8 +234,8 @@ export function buildPublicBreakdown(input: {
     const adeudos = [...acumulado.adeudos].sort((a, b) => {
       const porFecha = compararTexto(a.fecha, b.fecha);
       if (porFecha !== 0) return porFecha;
-      const porConcepto = compararTexto(a.concepto, b.concepto);
-      if (porConcepto !== 0) return porConcepto;
+      const porEtiqueta = compararTexto(a.etiqueta, b.etiqueta);
+      if (porEtiqueta !== 0) return porEtiqueta;
       return a.originalCents - b.originalCents;
     });
 
@@ -247,9 +247,9 @@ export function buildPublicBreakdown(input: {
 
     for (const adeudo of adeudos) {
       if (adeudo.pendienteCents <= 0) continue;
-      porConceptoAcumulado.set(
-        adeudo.concepto,
-        (porConceptoAcumulado.get(adeudo.concepto) ?? 0) + adeudo.pendienteCents,
+      porEtiquetaAcumulado.set(
+        adeudo.etiqueta,
+        (porEtiquetaAcumulado.get(adeudo.etiqueta) ?? 0) + adeudo.pendienteCents,
       );
     }
 
@@ -273,15 +273,15 @@ export function buildPublicBreakdown(input: {
     return compararTexto(a.nickname, b.nickname);
   });
 
-  const porConcepto: ConceptoPendiente[] = [...porConceptoAcumulado.entries()]
-    .map(([concepto, pendienteCents]) => ({ concepto, pendienteCents }))
+  const porEtiqueta: EtiquetaPendiente[] = [...porEtiquetaAcumulado.entries()]
+    .map(([etiqueta, pendienteCents]) => ({ etiqueta, pendienteCents }))
     .sort((a, b) => {
       if (a.pendienteCents !== b.pendienteCents) return b.pendienteCents - a.pendienteCents;
-      return compararTexto(a.concepto, b.concepto);
+      return compararTexto(a.etiqueta, b.etiqueta);
     });
 
   const totalPendienteCents = miembros.reduce((suma, miembro) => suma + miembro.pendienteCents, 0);
   const totalAbonadoCents = miembros.reduce((suma, miembro) => suma + miembro.abonadoCents, 0);
 
-  return { miembros, porConcepto, totalPendienteCents, totalAbonadoCents };
+  return { miembros, porEtiqueta, totalPendienteCents, totalAbonadoCents };
 }

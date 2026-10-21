@@ -60,7 +60,7 @@ interface CargoRaw {
   estado: 'pendiente' | 'pagado';
   created_at: string;
   miembros: MiembroRaw | null;
-  registro_apoyos: { fecha: string; catalogo_conceptos: { nombre: string } | null } | null;
+  registro_apoyos: { motivo: string | null; fecha: string } | null;
 }
 
 interface PagoRaw {
@@ -106,7 +106,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       db
         .from('cargos')
         .select(
-          'id, monto_original, monto_pendiente, estado, created_at, miembros(id, nickname, activo, status), registro_apoyos(fecha, catalogo_conceptos(nombre))',
+          'id, monto_original, monto_pendiente, estado, created_at, miembros(id, nickname, activo, status), registro_apoyos(motivo, fecha)',
         )
         .order('created_at', { ascending: true }),
       db.from('configuracion_bancaria').select('banco, clabe, titular').eq('id', 1).maybeSingle(),
@@ -150,7 +150,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           // The support's own date is what the club reads; a cargo whose
           // support did not resolve falls back to its insert time.
           fecha: cargo.registro_apoyos?.fecha ?? cargo.created_at,
-          concepto: cargo.registro_apoyos?.catalogo_conceptos?.nombre ?? null,
+          // The member-facing label is the apoyo's motive: it is the text the
+          // club actually wrote to describe the support, and the concept catalog
+          // is still empty (265 cargos unclassified). Operator decision,
+          // 2026-10-21: the motive is published verbatim.
+          etiqueta: cargo.registro_apoyos?.motivo ?? null,
         }),
       ),
       pagos: pagosRaw.map(
@@ -183,7 +187,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       noAplicadoCents: miembro.noAplicadoCents,
       adeudos: miembro.adeudos.map(
         (adeudo): DebtViewAdeudo => ({
-          concepto: adeudo.concepto,
+          motivo: adeudo.etiqueta,
           fecha: adeudo.fecha,
           originalCents: adeudo.originalCents,
           cubiertoCents: adeudo.cubiertoCents,
@@ -230,7 +234,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       cajaCents,
       totalAbonadoCents: breakdown.totalAbonadoCents,
       desglose,
-      porConcepto: breakdown.porConcepto,
+      porMotivo: breakdown.porEtiqueta.map((item) => ({
+        motivo: item.etiqueta,
+        pendienteCents: item.pendienteCents,
+      })),
     };
 
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');
