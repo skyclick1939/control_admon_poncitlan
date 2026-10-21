@@ -50,6 +50,21 @@ Also measured on 2026-10-08: `main` has **no branch protection and no rulesets**
 
 **Five pitfalls, every one of them already paid for.** (a) Never wrap a file that contains its own `begin;`/`commit;` inside another transaction to "test" it — the inner `commit;` commits for real; strip them and supply your own. (b) Never launch a writer while a native review is frozen: its new files drift the untracked inventory and block the correction route. (c) Run `git fetch` before inspecting a candidate; a stale `origin/main` inflated one candidate from 15 to 33 paths and tripped the lens context budget. (d) This repository is PUBLIC: no balances, no per-member totals, no derived figures — only the amounts a reversible `_down` cannot avoid. (e) The Supabase Management token lives in Engram (topic `config/control-admon-poncitlan-access`, obs #2882) and the project is SHARED: every script is strictly scoped to this app's own tables and additive.
 
+## Deployed 2026-10-21 — desglose público por miembro (`/vista/`)
+
+`feat/desglose-publico-vista` → **PR #9** → merge commit **`b67d4c2`** en `main`; Vercel construyó `main`. Sin cambios de base de datos, sin migraciones, sin dependencias nuevas.
+
+**Qué publica ahora `/vista/`:** deuda total, arca, **pagado histórico del club**, **adeudo pendiente por concepto** a nivel club (sin nombres) y la tabla **Miembro · Pagado · Saldo**, con una fila expandible por persona que muestra cada adeudo (concepto, fecha, original, cubierto, saldo) y sus abonos. Lleva `noindex, nofollow, no-referrer` y hoja de impresión que abre todos los detalles.
+
+**La página no declara una conciliación.** La base no registra qué abono pagó qué cargo: `aplicarPago` reparte FIFO en memoria y guarda solo el total. Se publican magnitudes derivadas de columnas almacenadas (`original`, `pendiente`, `cubierto = original − pendiente`) y el reparto efectivo/sin efectivo a nivel miembro, donde la suma con signo de `registro_ajustes` es exacta. La regla FIFO se explica en la interfaz; no se fabrica como registro por abono.
+
+**Verificado en producción, no en un preview:** `/api/debt-view` 200 con `desglose`; la suma por miembro iguala `totalPendienteCents` al centavo; 7 miembros; sin UUID ni `motivo`/`observaciones`/`token_hash`/`email`; `/vista/` sirve `noindex`. `vitest` 295/295, `tsc` limpio, build + postbuild en verde antes del merge.
+
+**Hueco de datos, no del código:** los **265 cargos** del historial siguen **sin concepto** (`concepto_id = null`), así que el desglose por concepto muestra un estado vacío explicativo en lugar de una sola barra «Sin clasificar» al 100%. El desbloqueo es el backfill guiado de `phase10_backfill_propuestas.sql`, que por D4 exige que el operador revise y apruebe la propuesta; **no se aplicó**.
+
+**Cómo se publicó:** push y PR con el PAT clásico de `skyclick1939` (Engram #2898) por URL autenticada y `GH_TOKEN`, merge commit (convención del repo). `main` no tiene branch protection: el único gate es la decisión humana, que el operador dio de forma explícita.
+
+
 ## Deployed 2026-10-08 — the concept catalog and the adjustments ledger are live in production
 
 PR **#4** (`docs/reparacion-y-ajustes-arca`) was opened and **merged to `main`** as `1cad01a`, a real merge commit, so all 17 work-unit commits landed (the repo's convention — PRs #1–#3 merged the same way). Vercel built `main` and recorded a **Production** deployment of `1cad01a` at 2026-10-08T02:40:01Z. The previous state — `main` frozen at `a456172` since 2026-09-15 with the branch unpublished — is the whole reason the operator could not see any of this work in Vercel.
