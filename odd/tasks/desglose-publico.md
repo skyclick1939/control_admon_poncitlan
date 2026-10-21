@@ -1,6 +1,7 @@
 # Feature: desglose público por miembro y trazabilidad de adeudos en /vista/
 
-**Status:** en implementación · **Branch:** `feat/desglose-publico-vista`
+**Status:** **implementado y verificado** en `feat/desglose-publico-vista` (5 commits, 3 slices apilados). Sin push, sin PR y sin desplegar: eso queda a decisión del operador.
+**Branch:** `feat/desglose-publico-vista` (+ `-1`, `-2`, `-3` como cadena apilada)
 **Related:** `api/debt-view.ts`, `src/lib/public-breakdown.ts`, `vista/index.html`, `openspec/changes/desglose-publico-miembro/`, `odd/tasks/coherencia-sin-cargos.md`
 
 > **Figuras ausentes por diseño.** Este repositorio es público.
@@ -23,24 +24,32 @@
 
 | ID | Tarea | Spec | Commit |
 |----|-------|------|--------|
-| T1 | Módulo puro `src/lib/public-breakdown.ts` + `public-breakdown.test.ts` (RED primero) | S3, S6 | `feat(public):` |
-| T2 | Extender `api/debt-view.ts` y `DebtViewResponse` (cargos ampliados, pagos, ajustes) | S1, S6 | `feat(api):` |
-| T3 | Enmendar `public-debt-view` spec y la nota de exclusión de `design.md` | S5 | `docs(openspec):` |
-| T4 | UI de `/vista/`: tabla expandible, pendiente por concepto, `noindex`, print | S2, S4 | `feat(vista):` |
-| T5 | Verificación: `vitest run`, `tsc --noEmit`, `npm run build`, smoke del endpoint | S1-S6 | — |
-| T6 | Commits por unidad de trabajo | S5 | — |
+| T1 | Módulo puro `src/lib/public-breakdown.ts` + `public-breakdown.test.ts` (RED primero) | S3, S6 | `340151e` |
+| T2 | Extender `api/debt-view.ts` y `DebtViewResponse` (cargos ampliados, pagos, ajustes) | S1, S6 | `fe7a656` |
+| T3 | Enmendar `public-debt-view` spec y la nota de exclusión de `design.md` | S5 | `5def816` |
+| T4 | UI de `/vista/`: tabla expandible, pendiente por concepto, `noindex`, print | S2, S4 | `1bb3b2b` |
+| T5 | Verificación: `vitest run`, `tsc --noEmit`, `npm run build`, navegador | S1-S6 | ver «Verificación» |
+| T6 | Commits por unidad de trabajo | S5 | `78a96b6` |
 
 ## Slices de revisión (`delivery_strategy: auto-chain`)
 
 Límite de ~400 líneas por unidad de revisión; la cadena se apila sobre `main` y cada rama es la base de la siguiente.
 
-| Slice | Contenido | Commits |
-|-------|-----------|---------|
-| 1 | Enmienda de spec, documento ODD, módulo puro y sus tests | `5def816`, `340151e` |
-| 2 | `api/debt-view.ts` + `src/lib/types.ts` | pendiente |
-| 3 | `vista/index.html` + `src/public-view.ts` | pendiente |
+| Slice | Contenido | Commits | Rama |
+|-------|-----------|---------|------|
+| 1 | Enmienda de spec, documento ODD, módulo puro y sus tests | `5def816`, `340151e`, `78a96b6` | `feat/desglose-publico-vista-1` |
+| 2 | `api/debt-view.ts` + `src/lib/types.ts` | `fe7a656` | `feat/desglose-publico-vista-2` |
+| 3 | `vista/index.html` + `src/public-view.ts` | `1bb3b2b` | `feat/desglose-publico-vista-3` |
 
-Ramas apiladas: `feat/desglose-publico-vista-1` → `-2` → `-3`. Push, PR y merge quedan a decisión del operador; nada se publica desde esta sesión.
+Push, PR y merge quedan a decisión del operador; nada se publicó desde esta sesión.
+
+## Verificación observada
+
+- `vitest run` → 17 archivos, **295 tests verdes** (15 del módulo nuevo).
+- `tsc --noEmit` → sin diagnósticos.
+- `npm run build` + `postbuild` → sin filtración de `service_role` en `dist/`.
+- Navegador (ego-browser): escritorio 2420 px y móvil 390×844, sin desbordamiento horizontal (`scrollWidth === clientWidth`). Impresión emulada: 5 de 5 detalles visibles y el botón de imprimir oculto; en pantalla, 0 visibles y `aria-expanded` alternando.
+- Sin cambios de base de datos, sin migraciones, sin dependencias nuevas.
 
 ## Decisiones de diseño
 
@@ -59,3 +68,7 @@ Ramas apiladas: `feat/desglose-publico-vista-1` → `-2` → `-3`. Push, PR y me
 «Me interesa el que los usuarios puedan ver a detalle sus respectivos adeudos, Ya que entendiendo lo que viene siendo el flujo de un abono es en donde cierto abono se le abona alpha o al adeudo más antiguo y así hasta llegar al adeudo más actual para poderlo culminar ya con el pago total, Entonces, necesito tener toda esa trazabilidad para que el usuario toda esa transparencia. Me doy cuenta de que hay ciertas reglas ya escritas, el cual te empiezan a bloquear, necesito Que encuentres todas esas reglas y las modifiques para que no te esté bloqueando una vez teniendo eso, aplica lo que te estoy mencionando y te comento que no hay ningún riesgo de absolutamente nada, ya que estamos trabajando sobre nickname, Saldos de que la gente o el público no va a entender, Y pues, simplemente este link se comparte solamente con los miembros del motoclub, Que más adelante me daré el lujo de poder validar ciertas IPs y bloquear otras más en caso de que haya desertores. Prácticamente crear como un tipo lista blanca O en su defecto, crear loggings para cada uno de los usuarios para que puedan acceder a un módulo "mi cuenta" Pero por lo pronto necesito algo fácil, rápido e intuitivo, Pero sobre todo que no nos cueste tanto código.»
 
 **L3 (2026-10-21, evidencia de la auditoría del par):** antigravity, ronda 1 `counter` con 6 hallazgos; ronda 2 `agree` con voto de cierre `concede`. Hallazgos verificados contra el código: signo de `registro_ajustes.monto` (negativo en reducciones), ruptura de la identidad para el receptor de una cesión, conceptos delicados del catálogo, ausencia de `noindex`, `details` inválido dentro de `tbody`, scraping. Los cinco primeros se corrigieron en el diseño; el sexto se re-calificó a `low` y el operador asume el residuo en L2.
+
+**L4 (2026-10-21, revisión del par sobre la implementación):** ronda 1 `dissent` con **un defecto real**: una cesión revertida dejaba `sinEfectivoCents` fantasma en el receptor. La exclusión cubría la fila de creación (`cesion`, `monto>0`, `cargo_id` no nulo) pero no su espejo, que `revertirAjuste` escribe con `monto` negativo (`ajustes/repo.ts:482`). Reproducido con un test en rojo (`public-breakdown.test.ts:151`), corregido en `describeCreacionDelCargo` (`public-breakdown.ts:132-135`). Severidad re-calificada de `high` a `medium`, aceptada por el par: el efecto es una nota falsa de presentación, sin mutar datos ni filtrar nada. Ronda 2 `agree`, voto `concede`.
+
+**L5 (2026-10-21, verificación visual):** tres defectos que solo aparecieron al mirar la página, no al leer el código. (1) La columna `Saldo` se recortaba en el detalle a dos columnas dentro de una celda. (2) En móvil quedaban fuera de pantalla `Cubierto` y `Saldo`, justo las que importan. (3) La regla de impresión no aplicaba: Tailwind v4 declara `[hidden]{display:none!important}` dentro de `@layer base`, y para declaraciones `!important` el orden de capas se invierte, así que ninguna regla sin capa puede reabrir la fila. Se cambió el mecanismo a una clase propia, igual que el `.view-hidden` que el proyecto ya usaba.
