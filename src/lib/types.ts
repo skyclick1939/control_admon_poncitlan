@@ -153,11 +153,58 @@ export interface ConfiguracionCaja {
 }
 
 /**
+ * One cargo of a member in the public breakdown (design.md amendment
+ * 2026-10-21, change `desglose-publico-miembro`). `cubiertoCents` is exactly
+ * `originalCents - pendienteCents`, both stored columns; the contract never
+ * publishes a per-abono-to-cargo link because the database does not store one.
+ * `concepto` is the catalog name, or the literal `Sin clasificar` for rows
+ * recorded before the catalog existed.
+ */
+export interface DebtViewAdeudo {
+  concepto: string;
+  fecha: string;
+  originalCents: number;
+  cubiertoCents: number;
+  pendienteCents: number;
+}
+
+/** One recorded payment of a member, as the public breakdown lists it. */
+export interface DebtViewAbono {
+  fecha: string;
+  montoCents: number;
+}
+
+/**
+ * A member's public position. `abonadoCents` is cash recorded; `sinEfectivoCents`
+ * is debt covered by condonaciones, cesiones or third-party payments;
+ * `noAplicadoCents` is cash that exceeded the balance at the time (may be
+ * negative when coverage came from an adjustment rather than a payment).
+ * Deliberately excludes the member UUID, `status`, `activo`, emails, `motivo`,
+ * `observaciones` and operator identity.
+ */
+export interface DebtViewMiembro {
+  nickname: string;
+  pendienteCents: number;
+  abonadoCents: number;
+  sinEfectivoCents: number;
+  aplicadoCents: number;
+  noAplicadoCents: number;
+  adeudos: DebtViewAdeudo[];
+  abonos: DebtViewAbono[];
+}
+
+/** Club-level pending balance for one concept, with no member identity attached. */
+export interface DebtViewConceptoPendiente {
+  concepto: string;
+  pendienteCents: number;
+}
+
+/**
  * Response contract of the public, unauthenticated `api/debt-view` function
  * (design.md `api/debt-view.ts` interface; specs public-debt-view,
  * bank-config). Deliberately excludes member UUIDs, status, emails,
- * capturador identity, and `observaciones` — see design.md's "Deliberately
- * excluded" note.
+ * capturador identity, `motivo`, and `observaciones` — see design.md's
+ * "Deliberately excluded" note and its 2026-10-21 amendment.
  */
 export interface DebtViewResponse {
   generatedAt: string;
@@ -166,6 +213,12 @@ export interface DebtViewResponse {
   banco: { banco: string; clabe: string; titular: string } | null;
   /** Aggregate cash-on-hand (integer cents), never per-movement detail. May be negative. */
   cajaCents: number;
+  /** Sum of every recorded payment, across the members the breakdown includes. */
+  totalAbonadoCents: number;
+  /** Per-member breakdown, pending balance first. */
+  desglose: DebtViewMiembro[];
+  /** Club receivable grouped by concept name, largest first. */
+  porConcepto: DebtViewConceptoPendiente[];
 }
 
 /**
