@@ -266,6 +266,8 @@ export interface DebtViewResponse {
 
 **Deliberately excluded** (this is the mitigation for the proposal's flagged risk): member UUIDs, `status` (fullparch/prospecto), `created_at`, per-charge `motivo` — apoyo reasons may be medical or personal and are the sharpest leak here — payment history, operator emails, `capturado_por`. The function **never** uses `select('*')`; the explicit column list is the guard.
 
+> **Amended 2026-10-21 by the product owner (change `desglose-publico-miembro`).** The exclusion of *payment history* is reversed, and a per-member breakdown (pending balance, payments recorded, per-adeudo covered/pending, club-level pending by concept) joins the public contract. The operator's decision, in his own words: *«no hay ningún riesgo de absolutamente nada, ya que estamos trabajando sobre nickname»*, and the link *«se comparte solamente con los miembros del motoclub»*. What **stays** excluded: member UUIDs, `status`, `created_at`, `motivo`, `observaciones`, capturador identity, emails, and any per-abono→cargo link — the database does not store one, so publishing it would be an invention. Recorded as a reversal, not a refinement, because it is one; the member portal (D13) keeps its own stricter exclusion.
+
 ```ts
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } });   // module scope, reused warm
