@@ -19,7 +19,7 @@ function cargo(overrides: Partial<CargoDesgloseRow> = {}): CargoDesgloseRow {
     monto_pendiente: 100,
     estado: 'pendiente',
     fecha: '2026-01-10',
-    concepto: 'Apoyo legal',
+    etiqueta: 'Apoyo legal',
     ...overrides,
   };
 }
@@ -85,7 +85,7 @@ describe('buildPublicBreakdown', () => {
 
     expect(result.miembros).toHaveLength(1);
     expect(result.totalAbonadoCents).toBe(1000);
-    expect(result.porConcepto).toEqual([{ concepto: 'Apoyo legal', pendienteCents: 10000 }]);
+    expect(result.porEtiqueta).toEqual([{ etiqueta: 'Apoyo legal', pendienteCents: 10000 }]);
   });
 
   it('reports per-adeudo original, covered and pending from stored columns', () => {
@@ -193,36 +193,36 @@ describe('buildPublicBreakdown', () => {
   it('aggregates club pending by concept, largest first', () => {
     const result = buildPublicBreakdown({
       cargos: [
-        cargo({ id: 'a', miembro: miembro('m1', 'ana'), concepto: 'Apoyo legal', monto_original: 10, monto_pendiente: 10 }),
-        cargo({ id: 'b', miembro: miembro('m2', 'beto'), concepto: 'Apoyo legal', monto_original: 90, monto_pendiente: 90 }),
-        cargo({ id: 'c', miembro: miembro('m1', 'ana'), concepto: 'Apoyo aniversario', monto_original: 30, monto_pendiente: 30 }),
+        cargo({ id: 'a', miembro: miembro('m1', 'ana'), etiqueta: 'Apoyo legal', monto_original: 10, monto_pendiente: 10 }),
+        cargo({ id: 'b', miembro: miembro('m2', 'beto'), etiqueta: 'Apoyo legal', monto_original: 90, monto_pendiente: 90 }),
+        cargo({ id: 'c', miembro: miembro('m1', 'ana'), etiqueta: 'Apoyo aniversario', monto_original: 30, monto_pendiente: 30 }),
       ],
       pagos: [],
       ajustes: [],
     });
 
-    expect(result.porConcepto).toEqual([
-      { concepto: 'Apoyo legal', pendienteCents: 10000 },
-      { concepto: 'Apoyo aniversario', pendienteCents: 3000 },
+    expect(result.porEtiqueta).toEqual([
+      { etiqueta: 'Apoyo legal', pendienteCents: 10000 },
+      { etiqueta: 'Apoyo aniversario', pendienteCents: 3000 },
     ]);
   });
 
-  it('labels rows recorded before the catalog existed as Sin clasificar', () => {
+  it('labels rows recorded before the catalog existed as Sin motivo', () => {
     const result = buildPublicBreakdown({
-      cargos: [cargo({ concepto: null })],
+      cargos: [cargo({ etiqueta: null })],
       pagos: [],
       ajustes: [],
     });
 
-    expect(result.miembros[0].adeudos[0].concepto).toBe('Sin clasificar');
-    expect(result.porConcepto).toEqual([{ concepto: 'Sin clasificar', pendienteCents: 10000 }]);
+    expect(result.miembros[0].adeudos[0].etiqueta).toBe('Sin motivo');
+    expect(result.porEtiqueta).toEqual([{ etiqueta: 'Sin motivo', pendienteCents: 10000 }]);
   });
 
   it('keeps the adeudo and abono history oldest first', () => {
     const result = buildPublicBreakdown({
       cargos: [
-        cargo({ id: 'nuevo', fecha: '2026-03-01', concepto: 'Apoyo aniversario' }),
-        cargo({ id: 'viejo', fecha: '2026-01-01', concepto: 'Apoyo legal' }),
+        cargo({ id: 'nuevo', fecha: '2026-03-01', etiqueta: 'Apoyo aniversario' }),
+        cargo({ id: 'viejo', fecha: '2026-01-01', etiqueta: 'Apoyo legal' }),
       ],
       pagos: [
         pago({ fecha_pago: '2026-02-10', monto_pagado: 10 }),
@@ -231,7 +231,7 @@ describe('buildPublicBreakdown', () => {
       ajustes: [],
     });
 
-    expect(result.miembros[0].adeudos.map((a) => a.concepto)).toEqual(['Apoyo legal', 'Apoyo aniversario']);
+    expect(result.miembros[0].adeudos.map((a) => a.etiqueta)).toEqual(['Apoyo legal', 'Apoyo aniversario']);
     expect(result.miembros[0].abonos.map((a) => a.fecha)).toEqual(['2026-01-15', '2026-02-10']);
   });
 
@@ -239,7 +239,7 @@ describe('buildPublicBreakdown', () => {
     const result = buildPublicBreakdown({ cargos: [], pagos: [], ajustes: [] });
 
     expect(result.miembros).toEqual([]);
-    expect(result.porConcepto).toEqual([]);
+    expect(result.porEtiqueta).toEqual([]);
     expect(result.totalPendienteCents).toBe(0);
   });
 

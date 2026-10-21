@@ -157,11 +157,12 @@ export interface ConfiguracionCaja {
  * 2026-10-21, change `desglose-publico-miembro`). `cubiertoCents` is exactly
  * `originalCents - pendienteCents`, both stored columns; the contract never
  * publishes a per-abono-to-cargo link because the database does not store one.
- * `concepto` is the catalog name, or the literal `Sin clasificar` for rows
- * recorded before the catalog existed.
+ * `motivo` is the support's own description, published verbatim by operator
+ * decision (2026-10-21), or the literal `Sin motivo` when the apoyo carries no
+ * text and the concept catalog is still empty.
  */
 export interface DebtViewAdeudo {
-  concepto: string;
+  motivo: string;
   fecha: string;
   originalCents: number;
   cubiertoCents: number;
@@ -193,9 +194,9 @@ export interface DebtViewMiembro {
   abonos: DebtViewAbono[];
 }
 
-/** Club-level pending balance for one concept, with no member identity attached. */
-export interface DebtViewConceptoPendiente {
-  concepto: string;
+/** Club-level pending balance for one motive, with no member identity attached. */
+export interface DebtViewMotivoPendiente {
+  motivo: string;
   pendienteCents: number;
 }
 
@@ -217,8 +218,8 @@ export interface DebtViewResponse {
   totalAbonadoCents: number;
   /** Per-member breakdown, pending balance first. */
   desglose: DebtViewMiembro[];
-  /** Club receivable grouped by concept name, largest first. */
-  porConcepto: DebtViewConceptoPendiente[];
+  /** Club receivable grouped by motive, largest first. */
+  porMotivo: DebtViewMotivoPendiente[];
 }
 
 /**

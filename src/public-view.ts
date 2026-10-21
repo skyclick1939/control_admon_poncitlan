@@ -84,35 +84,50 @@ function handleClabeCopy(event: Event): void {
   });
 }
 
-/** Club-level pending by concept, largest first, with a proportional bar. */
-function renderPorConcepto(items: DebtViewResponse['porConcepto']): string {
+/** The club card stays readable: beyond the top motives the tail is summed. */
+const MAX_MOTIVOS_CARD = 8;
+
+/** Club-level pending by motive, largest first, with a proportional bar. */
+function renderPorMotivo(items: DebtViewResponse['porMotivo']): string {
   if (items.length === 0) {
     return '<p class="text-sm text-gray-500">Sin adeudos pendientes.</p>';
   }
 
-  // The concept-catalog backfill is still pending (design D4 keeps it
-  // operator-approved), so a club whose whole history is unclassified would see
-  // a single bar labelled 100% "Sin clasificar" and read it as a broken card.
-  // The label matches `public-breakdown.ts`'s SIN_CLASIFICAR; it is repeated as
-  // a literal on purpose, because this entry must not pull the aggregator into
-  // the public bundle (D1's rule: escape + types + clipboard only).
-  if (items.length === 1 && items[0].concepto === 'Sin clasificar') {
+  // A history with no motive text would render one bar labelled 100% "Sin
+  // motivo" and read as a broken card. The label matches `public-breakdown.ts`'s
+  // SIN_ETIQUETA; it is repeated as a literal on purpose, because this entry must
+  // not pull the aggregator into the public bundle (D1: escape + types +
+  // clipboard only).
+  if (items.length === 1 && items[0].motivo === 'Sin motivo') {
     return `
       <p class="text-sm text-gray-600">
-        Ningún apoyo del historial tiene concepto asignado todavía, así que todo el saldo pendiente está en «Sin clasificar».
-        Cuando el club clasifique sus apoyos, aquí aparecerá el desglose por concepto.
+        Ningún apoyo del historial tiene motivo registrado, así que todo el saldo pendiente está en «Sin motivo».
       </p>`;
   }
 
   const total = items.reduce((sum, item) => sum + item.pendienteCents, 0);
+  // 51 distinct motives exist already: beyond the top ones the card would stop
+  // being a summary. The tail is summed, never dropped.
+  const visibles =
+    items.length > MAX_MOTIVOS_CARD + 1
+      ? [
+          ...items.slice(0, MAX_MOTIVOS_CARD),
+          {
+            motivo: `Otros (${items.length - MAX_MOTIVOS_CARD} motivos)`,
+            pendienteCents: items
+              .slice(MAX_MOTIVOS_CARD)
+              .reduce((sum, item) => sum + item.pendienteCents, 0),
+          },
+        ]
+      : items;
 
-  return `<ul class="space-y-3">${items
+  return `<ul class="space-y-3">${visibles
     .map((item) => {
       const pct = total > 0 ? Math.round((item.pendienteCents / total) * 100) : 0;
       return `
         <li>
           <div class="flex items-baseline justify-between gap-3 text-sm">
-            <span class="text-gray-800">${escapeHtml(item.concepto)}</span>
+            <span class="text-gray-800 line-clamp-2" title="${escapeHtml(item.motivo)}">${escapeHtml(item.motivo)}</span>
             <span class="text-gray-600 tabular-nums whitespace-nowrap">${formatCentsMXN(item.pendienteCents)} <span class="text-gray-400">· ${pct}%</span></span>
           </div>
           <div class="mt-1 h-2 w-full rounded-full bg-gray-100">
@@ -132,7 +147,7 @@ function renderAdeudos(miembro: DebtViewMiembro): string {
     .map(
       (adeudo) => `
         <tr class="border-t border-gray-200">
-          <td class="py-1.5 pr-3 text-gray-800">${escapeHtml(adeudo.concepto)}</td>
+          <td class="py-1.5 pr-3 text-gray-800 w-[45%]"><span class="line-clamp-2" title="${escapeHtml(adeudo.motivo)}">${escapeHtml(adeudo.motivo)}</span></td>
           <td class="hidden sm:table-cell py-1.5 pr-3 text-gray-500 whitespace-nowrap">${formatFecha(adeudo.fecha)}</td>
           <td class="hidden sm:table-cell py-1.5 pr-3 text-right text-gray-700 tabular-nums whitespace-nowrap">${formatCentsMXN(adeudo.originalCents)}</td>
           <td class="py-1.5 pr-3 text-right text-green-700 tabular-nums whitespace-nowrap">${formatCentsMXN(adeudo.cubiertoCents)}</td>
@@ -146,7 +161,7 @@ function renderAdeudos(miembro: DebtViewMiembro): string {
       <caption class="sr-only">Adeudos del miembro, del más antiguo al más reciente</caption>
       <thead>
         <tr>
-          <th scope="col" class="py-1 pr-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+          <th scope="col" class="py-1 pr-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
           <th scope="col" class="hidden sm:table-cell py-1 pr-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
           <th scope="col" class="hidden sm:table-cell py-1 pr-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Original</th>
           <th scope="col" class="py-1 pr-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cubierto</th>
@@ -284,7 +299,7 @@ async function loadDebtView(): Promise<void> {
   const cajaEl = document.getElementById('vista-caja')!;
   const totalAbonadoEl = document.getElementById('vista-total-abonado')!;
   const desgloseBody = document.getElementById('vista-desglose-body')!;
-  const porConceptoContainer = document.getElementById('vista-por-concepto')!;
+  const porMotivoContainer = document.getElementById('vista-por-motivo')!;
   const bancoContainer = document.getElementById('vista-banco')!;
   const errorEl = document.getElementById('vista-error')!;
   const generatedAtEl = document.getElementById('vista-generated-at')!;
@@ -303,7 +318,7 @@ async function loadDebtView(): Promise<void> {
     // Negative caja renders red and unblocked — never hidden, clamped, or gated (spec caja: Negative Caja Is Allowed).
     cajaEl.className = `text-2xl font-bold mt-1 ${data.cajaCents < 0 ? 'text-red-600' : 'text-green-600'}`;
     setText(totalAbonadoEl, formatCentsMXN(data.totalAbonadoCents));
-    porConceptoContainer.innerHTML = renderPorConcepto(data.porConcepto);
+    porMotivoContainer.innerHTML = renderPorMotivo(data.porMotivo);
     desgloseBody.innerHTML = renderDesglose(data.desglose);
     bancoContainer.innerHTML = renderBanco(data.banco);
     setText(generatedAtEl, new Date(data.generatedAt).toLocaleString('es-MX'));

@@ -54,13 +54,15 @@ Also measured on 2026-10-08: `main` has **no branch protection and no rulesets**
 
 `feat/desglose-publico-vista` → **PR #9** → merge commit **`b67d4c2`** en `main`; Vercel construyó `main`. Sin cambios de base de datos, sin migraciones, sin dependencias nuevas.
 
-**Qué publica ahora `/vista/`:** deuda total, arca, **pagado histórico del club**, **adeudo pendiente por concepto** a nivel club (sin nombres) y la tabla **Miembro · Pagado · Saldo**, con una fila expandible por persona que muestra cada adeudo (concepto, fecha, original, cubierto, saldo) y sus abonos. Lleva `noindex, nofollow, no-referrer` y hoja de impresión que abre todos los detalles.
+**Qué publica ahora `/vista/`:** deuda total, arca, **pagado histórico del club**, **adeudo pendiente por motivo** a nivel club (sin nombres) y la tabla **Miembro · Pagado · Saldo**, con una fila expandible por persona que muestra cada adeudo (motivo, fecha, original, cubierto, saldo) y sus abonos. Lleva `noindex, nofollow, no-referrer` y hoja de impresión que abre todos los detalles.
+
+**La etiqueta es el `motivo`, no el concepto** (decisión del operador, 2026-10-21). Los 265 cargos tienen `concepto_id = null` — el backfill nunca corrió — y el motivo es el texto que el club sí escribió. El operador fue informado de la única cadena sensible (un motivo en 7 filas menciona un padecimiento y armas) y eligió publicarla; queda registrado en la enmienda de `design.md`. Modalidad del cambio: `motivo` publicado tal cual, recortado a dos líneas en pantalla con el texto completo en el tooltip, y la tarjeta del club suma la cola en «Otros (N motivos)».
 
 **La página no declara una conciliación.** La base no registra qué abono pagó qué cargo: `aplicarPago` reparte FIFO en memoria y guarda solo el total. Se publican magnitudes derivadas de columnas almacenadas (`original`, `pendiente`, `cubierto = original − pendiente`) y el reparto efectivo/sin efectivo a nivel miembro, donde la suma con signo de `registro_ajustes` es exacta. La regla FIFO se explica en la interfaz; no se fabrica como registro por abono.
 
 **Verificado en producción, no en un preview:** `/api/debt-view` 200 con `desglose`; la suma por miembro iguala `totalPendienteCents` al centavo; 7 miembros; sin UUID ni `motivo`/`observaciones`/`token_hash`/`email`; `/vista/` sirve `noindex`. `vitest` 295/295, `tsc` limpio, build + postbuild en verde antes del merge.
 
-**Hueco de datos, no del código:** los **265 cargos** del historial siguen **sin concepto** (`concepto_id = null`), así que el desglose por concepto muestra un estado vacío explicativo en lugar de una sola barra «Sin clasificar» al 100%. El desbloqueo es el backfill guiado de `phase10_backfill_propuestas.sql`, que por D4 exige que el operador revise y apruebe la propuesta; **no se aplicó**.
+**Hueco de datos, no del código:** los **265 cargos** del historial siguen **sin concepto** (`concepto_id = null`), y eso ya no le quita información a la página porque la etiqueta es el motivo. Clasificar el historial sigue pendiente y es otra mejora: el backfill guiado de `phase10_backfill_propuestas.sql`, que por D4 exige que el operador revise y apruebe la propuesta; **no se aplicó**.
 
 **Cómo se publicó:** push y PR con el PAT clásico de `skyclick1939` (Engram #2898) por URL autenticada y `GH_TOKEN`, merge commit (convención del repo). `main` no tiene branch protection: el único gate es la decisión humana, que el operador dio de forma explícita.
 
