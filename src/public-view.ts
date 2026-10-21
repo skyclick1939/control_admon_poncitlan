@@ -90,6 +90,20 @@ function renderPorConcepto(items: DebtViewResponse['porConcepto']): string {
     return '<p class="text-sm text-gray-500">Sin adeudos pendientes.</p>';
   }
 
+  // The concept-catalog backfill is still pending (design D4 keeps it
+  // operator-approved), so a club whose whole history is unclassified would see
+  // a single bar labelled 100% "Sin clasificar" and read it as a broken card.
+  // The label matches `public-breakdown.ts`'s SIN_CLASIFICAR; it is repeated as
+  // a literal on purpose, because this entry must not pull the aggregator into
+  // the public bundle (D1's rule: escape + types + clipboard only).
+  if (items.length === 1 && items[0].concepto === 'Sin clasificar') {
+    return `
+      <p class="text-sm text-gray-600">
+        Ningún apoyo del historial tiene concepto asignado todavía, así que todo el saldo pendiente está en «Sin clasificar».
+        Cuando el club clasifique sus apoyos, aquí aparecerá el desglose por concepto.
+      </p>`;
+  }
+
   const total = items.reduce((sum, item) => sum + item.pendienteCents, 0);
 
   return `<ul class="space-y-3">${items
