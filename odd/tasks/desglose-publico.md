@@ -20,6 +20,8 @@
 
 **S6.** Toda cifra publicada MUST ser derivable de columnas almacenadas; el sistema MUST NOT publicar un vínculo «este abono pagó este adeudo» que la base no registra. El reparto FIFO MUST presentarse como regla de aplicación, no como registro por abono.
 
+**S7.** El operador pide, el 2026-10-21: «suple "concepto" por el "motivo" esto para que sea más intuitivo ya que en los motivos siempre se detallaron los apoyos.» La etiqueta de cada adeudo y la agrupación del club pasan a ser `registro_apoyos.motivo`, publicada tal cual, con «Sin motivo» cuando el apoyo no trae texto.
+
 ## Tasks
 
 | ID | Tarea | Spec | Commit |
@@ -65,6 +67,7 @@ Push, PR y merge quedan a decisión del operador; nada se publicó desde esta se
 - **D3 — Sin fila de conciliación.** La identidad global requiere sumar las filas de creación; publicarla ata la página a la semántica del writer. Se muestra `no aplicado` solo cuando difiere de cero.
 - **D4 — Agrupar por `miembro.id`.** El ranking actual agrupa por nickname y fusiona homónimos.
 - **D5 — Sin dependencias nuevas, sin cambios de base de datos.** Rollback = revertir dos archivos.
+- **D6 — La etiqueta es el motivo, no el concepto.** Medido en producción: los 265 cargos tienen `concepto_id = null` (el backfill nunca corrió), mientras hay 51 motivos distintos, 49 caracteres de largo promedio. Publicar el concepto dejaba una columna entera de «Sin clasificar»; el motivo es lo que el club escribió. El operador vio antes las cadenas concretas — un motivo en 7 filas dice «Apoyo a Guanajuato Cx. Próstata y carnal involucrado con armas» — y eligió publicarlas igual. La tarjeta del club agrupa por motivo y suma la cola en «Otros (N motivos)» para no convertirse en una lista de 51 renglones.
 
 ## Log
 
@@ -79,3 +82,5 @@ Push, PR y merge quedan a decisión del operador; nada se publicó desde esta se
 **L4 (2026-10-21, revisión del par sobre la implementación):** ronda 1 `dissent` con **un defecto real**: una cesión revertida dejaba `sinEfectivoCents` fantasma en el receptor. La exclusión cubría la fila de creación (`cesion`, `monto>0`, `cargo_id` no nulo) pero no su espejo, que `revertirAjuste` escribe con `monto` negativo (`ajustes/repo.ts:482`). Reproducido con un test en rojo (`public-breakdown.test.ts:151`), corregido en `describeCreacionDelCargo` (`public-breakdown.ts:132-135`). Severidad re-calificada de `high` a `medium`, aceptada por el par: el efecto es una nota falsa de presentación, sin mutar datos ni filtrar nada. Ronda 2 `agree`, voto `concede`.
 
 **L5 (2026-10-21, verificación visual):** tres defectos que solo aparecieron al mirar la página, no al leer el código. (1) La columna `Saldo` se recortaba en el detalle a dos columnas dentro de una celda. (2) En móvil quedaban fuera de pantalla `Cubierto` y `Saldo`, justo las que importan. (3) La regla de impresión no aplicaba: Tailwind v4 declara `[hidden]{display:none!important}` dentro de `@layer base`, y para declaraciones `!important` el orden de capas se invierte, así que ninguna regla sin capa puede reabrir la fila. Se cambió el mecanismo a una clase propia, igual que el `.view-hidden` que el proyecto ya usaba.
+
+**L6 (2026-10-21, cambio de etiqueta, verbatim):** «suple "concepto" por el "motivo" esto para que sea más intuitivo ya que en los motivos siempre se detallaron los apoyos.» Antes de ejecutarlo se midió la forma real de los motivos y se citó al operador la cadena sensible concreta; eligió publicarla. Ver D6.
