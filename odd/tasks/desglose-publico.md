@@ -1,6 +1,6 @@
 # Feature: desglose público por miembro y trazabilidad de adeudos en /vista/
 
-**Status:** **implementado y verificado** en `feat/desglose-publico-vista` (5 commits, 3 slices apilados). Sin push, sin PR y sin desplegar: eso queda a decisión del operador.
+**Status:** **desplegado en producción 2026-10-21** (PR #9 → `b67d4c2`; Vercel construyó `main`).
 **Branch:** `feat/desglose-publico-vista` (+ `-1`, `-2`, `-3` como cadena apilada)
 **Related:** `api/debt-view.ts`, `src/lib/public-breakdown.ts`, `vista/index.html`, `openspec/changes/desglose-publico-miembro/`, `odd/tasks/coherencia-sin-cargos.md`
 
@@ -42,6 +42,13 @@ Límite de ~400 líneas por unidad de revisión; la cadena se apila sobre `main`
 | 3 | `vista/index.html` + `src/public-view.ts` | `1bb3b2b` | `feat/desglose-publico-vista-3` |
 
 Push, PR y merge quedan a decisión del operador; nada se publicó desde esta sesión.
+
+## Despliegue (2026-10-21)
+
+- **PR #9** `feat/desglose-publico-vista` → `main`, merge commit **`b67d4c2`**. Vercel construyó `main`; producción sirve el desglose.
+- **Verificado contra producción, no contra un preview**: `/api/debt-view` 200 con `desglose`, la suma por miembro iguala `totalPendienteCents` al centavo, sin UUID ni `motivo`/`observaciones`/`token_hash`/`email`, y `/vista/` sirve `noindex`.
+- **Follow-up** (`fix/sin-clasificar-empty-state`): los 265 cargos del historial están sin concepto, así que el pendiente por concepto salía como una única barra «Sin clasificar» al 100%, que se lee como un defecto. Ahora ese estado se explica en prosa.
+- **Hueco de datos, no de código**: el desbloqueo de la dimensión «concepto» es el backfill guiado de `phase10_backfill_propuestas.sql`, que por D4 requiere revisión y aprobación del operador. No se aplicó.
 
 ## Verificación observada
 
