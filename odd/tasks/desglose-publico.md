@@ -30,6 +30,18 @@
 | T5 | Verificación: `vitest run`, `tsc --noEmit`, `npm run build`, smoke del endpoint | S1-S6 | — |
 | T6 | Commits por unidad de trabajo | S5 | — |
 
+## Slices de revisión (`delivery_strategy: auto-chain`)
+
+Límite de ~400 líneas por unidad de revisión; la cadena se apila sobre `main` y cada rama es la base de la siguiente.
+
+| Slice | Contenido | Commits |
+|-------|-----------|---------|
+| 1 | Enmienda de spec, documento ODD, módulo puro y sus tests | `5def816`, `340151e` |
+| 2 | `api/debt-view.ts` + `src/lib/types.ts` | pendiente |
+| 3 | `vista/index.html` + `src/public-view.ts` | pendiente |
+
+Ramas apiladas: `feat/desglose-publico-vista-1` → `-2` → `-3`. Push, PR y merge quedan a decisión del operador; nada se publica desde esta sesión.
+
 ## Decisiones de diseño
 
 - **D1 — Una sola fuente de cálculo.** El desglose no recalcula por su cuenta lo que `aggregateDebtByMember` ya resuelve: el endpoint deriva `deudores`/`totalPendienteCents` del desglose y un test fija la equivalencia con la función existente. `aggregateDebtByMember` se conserva intacta porque `caja/repo.ts` y `dashboard/index.ts` la usan.
